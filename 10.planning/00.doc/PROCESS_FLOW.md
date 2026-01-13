@@ -1,16 +1,447 @@
 # 프로세스 플로우 다이어그램
 
-전체 시스템 프로세스를 Mermaid 다이어그램으로 정리한 문서입니다.
+## 📖 문서 개요
 
-## 주요 기술 스택
+이 문서는 **데이터 통합 플랫폼 기반 지능형 IoT 관리 솔루션**의 전체 시스템 프로세스를 Mermaid 다이어그램과 상세 설명으로 정리한 설계 문서입니다.
 
-- **Cold 데이터 저장소**: Apache Iceberg 테이블 형식으로 S3에 저장
+### 문서의 목적
+
+- **시스템 이해도 향상**: 전체 데이터 흐름과 프로세스를 시각적으로 이해
+- **의사결정 지원**: 각 단계별 기술 선택과 아키텍처 결정 근거 제공
+- **구현 가이드**: 개발팀이 참고할 수 있는 상세 프로세스 정의
+- **외부 설명 자료**: 고객사, 경영진, 이해관계자에게 시스템을 설명하기 위한 자료
+
+### 문서 구성
+
+이 문서는 다음과 같이 구성되어 있습니다:
+
+1. **프로젝트 구성**: 설계 문서와 웹 애플리케이션의 구조
+2. **전체 로드맵**: 6단계 구현 계획 (2026년 3월부터 6개월)
+3. **데이터 통합 플랫폼**: 데이터 수집부터 저장까지 전체 프로세스
+4. **실시간 데이터 수집**: 다중 프로토콜(TCP/MQTT/API) 통합 프로세스
+5. **데이터 표준화**: 스키마 정의 및 데이터 변환 프로세스
+6. **모니터링 및 알람**: 실시간 모니터링 및 알람 생성 프로세스
+7. **원격 제어 및 OTA**: 디바이스 제어 및 펌웨어 업데이트 프로세스
+8. **자동 진단 및 대응**: AI 기반 이상 탐지 및 자동 대응 프로세스
+9. **설치 및 배포**: SaaS 설치 및 기존 시스템 연동 프로세스
+10. **필요 리소스**: 구축에 필요한 AWS 리소스 및 시스템 정리
+
+---
+
+## 문서 구조 및 프로젝트 구성
+
+이 프로젝트는 **설계 문서**와 **Vite + React 웹 애플리케이션**으로 구성되어 있으며, 각각의 역할과 목적이 명확히 구분되어 있습니다.
+
+### 프로젝트 구성
+
+```mermaid
+graph TB
+    Start([프로젝트 구성])
+    
+    %% 첫 번째 섹션: 설계 문서
+    Start --> Section1[📄 설계 문서]
+    Section1 --> Doc1[PROCESS_FLOW.md]
+    Section1 --> Doc2[PROJECT_ANALYSIS.md]
+    Section1 --> Doc3[README.md]
+    
+    %% 두 번째 섹션: 웹 애플리케이션
+    Doc3 --> Section2[🌐 웹 애플리케이션]
+    Section2 --> App[App.tsx]
+    
+    %% 세 번째 섹션: 3가지 모드
+    App --> Section3[3가지 모드]
+    Section3 --> Mode1[대시보드]
+    Section3 --> Mode2[프레젠테이션]
+    Section3 --> Mode3[설계문서]
+    
+    %% 대시보드 - 첫 번째 행
+    Mode1 --> Dash1[Frame 1]
+    Mode1 --> Dash2[Frame 2]
+    Mode1 --> Dash3[Frame 3]
+    Mode1 --> Dash4[Frame 4]
+    
+    %% 대시보드 - 두 번째 행
+    Dash4 --> Dash5[Frame 5]
+    Dash1 --> Dash6[Frame 6]
+    Dash2 --> Dash7[Frame 7]
+    
+    %% 프레젠테이션 - 첫 번째 행
+    Mode2 --> Pres1[Slide 1]
+    Mode2 --> Pres2[Slide 2]
+    Mode2 --> Pres3[Slide 3]
+    Mode2 --> Pres4[Slide 4]
+    
+    %% 프레젠테이션 - 두 번째 행
+    Pres4 --> Pres5[Slide 5]
+    Pres1 --> Pres6[Slide 6]
+    Pres2 --> Pres7[Slide 7]
+    
+    %% 문서 뷰어
+    Mode3 --> Viewer[문서 뷰어]
+    Viewer --> View1[PROCESS_FLOW.md]
+    Viewer --> View2[PROJECT_ANALYSIS.md]
+    Viewer --> View3[README.md]
+    
+    End([ ])
+    View3 --> End
+    
+    style Start fill:#E0E0E0,color:#000,stroke:#666,stroke-width:3px
+    style Section1 fill:#E3F2FD,color:#000,stroke:#2196F3,stroke-width:2px
+    style Section2 fill:#E8F5E9,color:#000,stroke:#4CAF50,stroke-width:2px
+    style Section3 fill:#FFF9C4,color:#000,stroke:#FBC02D,stroke-width:2px
+    style App fill:#66BB6A,color:#fff,stroke:#2E7D32,stroke-width:2px
+    style Mode1 fill:#66BB6A,color:#fff
+    style Mode2 fill:#FF9800,color:#fff
+    style Mode3 fill:#9C27B0,color:#fff
+    style Viewer fill:#9C27B0,color:#fff,stroke:#7B1FA2,stroke-width:2px
+    style End fill:#fff,stroke:none
+    
+    style Doc1 fill:#42A5F5,color:#fff
+    style Doc2 fill:#42A5F5,color:#fff
+    style Doc3 fill:#42A5F5,color:#fff
+    
+    style Dash1 fill:#81C784,color:#000
+    style Dash2 fill:#81C784,color:#000
+    style Dash3 fill:#81C784,color:#000
+    style Dash4 fill:#81C784,color:#000
+    style Dash5 fill:#81C784,color:#000
+    style Dash6 fill:#81C784,color:#000
+    style Dash7 fill:#81C784,color:#000
+    
+    style Pres1 fill:#FFB74D,color:#000
+    style Pres2 fill:#FFB74D,color:#000
+    style Pres3 fill:#FFB74D,color:#000
+    style Pres4 fill:#FFB74D,color:#000
+    style Pres5 fill:#FFB74D,color:#000
+    style Pres6 fill:#FFB74D,color:#000
+    style Pres7 fill:#FFB74D,color:#000
+    
+    style View1 fill:#42A5F5,color:#fff
+    style View2 fill:#42A5F5,color:#fff
+    style View3 fill:#42A5F5,color:#fff
+```
+
+### 문서 및 애플리케이션 역할
+
+#### 1. 설계 문서 (00.doc/)
+
+설계 문서는 프로젝트의 기술적 설계와 프로세스를 상세히 문서화한 것으로, 개발팀과 이해관계자가 시스템을 이해하고 구현하는 데 필요한 모든 정보를 포함합니다.
+
+##### 1.1 PROCESS_FLOW.md (이 문서)
+**목적**: 전체 시스템 프로세스를 Mermaid 다이어그램과 상세 설명으로 정리
+
+**주요 내용**:
+- **데이터 수집부터 제품 개선까지 전체 프로세스**: IoT 데이터가 수집되어 최종적으로 제품 개선에 활용되는 전 과정
+- **설치/배포 프로세스**: SaaS 형태로 서비스를 설치하고 배포하는 방법
+- **기존 시스템 연동 프로세스**: 온프레미스 시스템과 AWS 간의 안전한 연동 방법
+- **구축 필요 리소스 정리**: AWS 서비스 및 인프라 구성 요소 상세 목록
+
+**대상 독자**: 
+- 시스템 아키텍트 및 개발팀
+- 프로젝트 관리자
+- 기술 검토를 수행하는 이해관계자
+
+##### 1.2 PROJECT_ANALYSIS.md
+**목적**: 프로젝트의 상세 분석 및 기술 스택 정리
+
+**주요 내용**:
+- 프로젝트 배경 및 목적
+- 기술 스택 선택 근거
+- 애플리케이션 아키텍처
+- 컴포넌트 구조 및 역할
+
+**대상 독자**: 개발팀, 기술 리더
+
+##### 1.3 README.md
+**목적**: 프로젝트 개요 및 빠른 시작 가이드
+
+**주요 내용**:
+- 프로젝트 소개
+- 설치 및 실행 방법
+- 주요 기능 개요
+- 개발 가이드
+
+**대상 독자**: 모든 이해관계자, 신규 개발자
+
+#### 2. 웹 애플리케이션 (Vite + React)
+
+이 프로젝트는 **Vite + React** 기반의 단일 페이지 애플리케이션(SPA)으로 구성되어 있으며, 사용자 그룹별로 최적화된 3가지 모드를 제공합니다.
+
+**3가지 모드의 관계**:
+
+```
+프레젠테이션 모드 (비즈니스 관점)
+    ↓ 구체화
+기술 상세 모드 (기술 관점)
+    ↓ 구체화
+설계 문서 모드 (상세 기술 문서)
+```
+
+- **프레젠테이션 모드**: 비즈니스 제안용 - 핵심 메시지와 개요 중심
+- **기술 상세 모드**: 기술팀용 - 프레젠테이션의 기술적 상세 분석
+- **설계 문서 모드**: 모든 이해관계자용 - 프레젠테이션과 기술 상세 모드의 구체화된 상세 버전
+
+**기술 스택**:
+- **빌드 도구**: Vite 6.3.5 (빠른 개발 서버 및 최적화된 빌드)
+- **프레임워크**: React 18.3.1 + TypeScript
+- **UI 라이브러리**: Radix UI + shadcn/ui + Tailwind CSS
+- **다이어그램**: Mermaid.js (프로세스 플로우 시각화)
+- **마크다운**: react-markdown (설계 문서 렌더링)
+
+**접근 방법**: 
+- 로컬 개발: `npm run dev` (http://localhost:3000)
+- URL 해시 기반 라우팅으로 각 모드 및 섹션 직접 접근 가능
+
+##### 2.1 기술 상세 모드 (DashboardApp) - 기술팀용 상세 분석
+
+**명칭 변경 제안**: "대시보드 모드" → "기술 상세 모드" (또는 "상세 분석 모드")
+
+**목적**: 상세 분석 및 기술 검토용 - 프레젠테이션 모드의 기술적 상세 버전
+
+**프레젠테이션과의 관계**:
+- 프레젠테이션 모드가 **비즈니스 관점**에서 제시한 내용을 **기술적 관점**에서 상세히 분석
+- 각 프레젠테이션 슬라이드에 대응하는 기술 상세 프레임 제공
+
+**구성**: 7개 Frame으로 구성된 상세 대시보드
+  - **Frame 1 (problem)**: 데이터 문제 정의 - `ProblemFrame` 컴포넌트
+    - 프레젠테이션 Slide 2 (문제점)의 기술적 상세 분석
+    - 5개 카테고리별 문제 정의 및 해결 방안
+  - **Frame 2 (schema)**: 데이터 표준화 - `SchemaFrame` 컴포넌트
+    - 프레젠테이션 Slide 3 (솔루션)의 데이터 표준화 부분 상세화
+    - 7개 도메인 통합 스키마 상세 정의
+  - **Frame 3 (integration)**: 데이터 통합 플랫폼 - `DataIntegrationFrame` 컴포넌트
+    - 프레젠테이션 Slide 4 (아키텍처)의 데이터 통합 부분 상세화
+    - 아키텍처, 품질 관리, 보안 연결, 생명주기 관리 상세
+  - **Frame 4 (monitoring)**: 실시간 데이터 모니터링 - `MonitoringFrame` 컴포넌트
+    - 프레젠테이션 Slide 5 (이점)의 모니터링 부분 상세화
+    - 실시간 대시보드 및 알람 관리 상세
+  - **Frame 5 (control)**: 데이터 기반 자동 제어 - `RemoteControlFrame` 컴포넌트
+    - 프레젠테이션 Slide 5 (이점)의 원격 제어 부분 상세화
+    - Shadow 기반 제어 및 OTA 관리 상세
+  - **Frame 6 (analysis)**: 지능형 데이터 분석 - `AnalysisFrame` 컴포넌트
+    - 프레젠테이션 Slide 3 (솔루션)의 AI 기반 분석 부분 상세화
+    - AI 기반 분석 엔진 상세
+  - **Frame 7 (future)**: 데이터 활용 확장 - `FutureFrame` 컴포넌트
+    - 프레젠테이션 Slide 6 (로드맵)의 확장 계획 상세화
+    - 향후 확장 계획 상세
+
+**URL 해시**: `#dashboard/{frame-id}` (예: `#dashboard/problem`)
+
+**대상**: 기술팀, 아키텍트, 개발팀
+
+**설계 문서와의 관계**: 
+- 각 프레임의 내용이 설계 문서(`PROCESS_FLOW.md`)에서 더욱 상세하게 다이어그램과 프로세스로 설명됨
+- 프레임에서 보여준 내용의 기술적 배경과 구현 방법을 설계 문서에서 확인 가능
+
+##### 2.2 프레젠테이션 모드 (PresentationApp) - 비즈니스 제안용
+
+**목적**: 고객 제안 및 비즈니스 검토용 - **개요 및 핵심 메시지 중심**
+
+**구성**: 7개 슬라이드로 구성된 프레젠테이션
+  - **Slide 1 (title)**: 제목 슬라이드 - 데이터 통합 플랫폼 기반 지능형 IoT 관리 솔루션
+  - **Slide 2 (problem)**: 현재 문제점 - `ProblemSlide` 컴포넌트
+    - 5개 카테고리별 문제 요약 및 현재 상황 지표
+    - → 기술 상세 모드 Frame 1에서 상세 분석
+    - → 설계 문서에서 문제 정의 및 해결 방안 상세 문서화
+  - **Slide 3 (solution)**: 솔루션 개요 - `SolutionSlide` 컴포넌트
+    - 통합 데이터 플랫폼, AI 기반 분석, 실시간 자동화, 원격 제어 요약
+    - → 기술 상세 모드 Frame 2, 3, 6에서 각각 상세 분석
+    - → 설계 문서에서 솔루션 아키텍처 및 구현 방법 상세 설명
+  - **Slide 4 (architecture)**: 시스템 아키텍처 - `ArchitectureSlide` 컴포넌트
+    - 4계층 아키텍처 및 AWS 기술 스택 요약
+    - → 기술 상세 모드 Frame 3에서 데이터 통합 플랫폼 상세
+    - → 설계 문서에서 전체 시스템 아키텍처 다이어그램 및 상세 설계
+  - **Slide 5 (benefits)**: 핵심 기능 및 이점 - `BenefitsSlide` 컴포넌트
+    - 기능별 이점 요약
+    - → 기술 상세 모드 Frame 4, 5에서 모니터링 및 제어 상세
+    - → 설계 문서에서 각 기능의 프로세스 및 구현 방법 상세
+  - **Slide 6 (roadmap)**: 구현 로드맵 - `RoadmapSlide` 컴포넌트
+    - 6단계 구현 계획 요약
+    - → 기술 상세 모드 Frame 7에서 확장 계획 상세
+    - → 설계 문서에서 단계별 구현 프로세스 및 상세 일정
+  - **Slide 7 (roi)**: ROI & 비즈니스 임팩트 - `ROISlide` 컴포넌트
+    - 투자 대비 효과 요약
+    - → 설계 문서에서 비용 분석 및 리소스 요구사항 상세
+
+**URL 해시**: `#presentation/{slide-id}` (예: `#presentation/title`)
+
+**대상**: 고객사, 경영진, 의사결정자
+
+**설계 문서와의 관계**:
+- 각 슬라이드의 내용이 설계 문서(`PROCESS_FLOW.md`)에서 기술적으로 상세하게 설명됨
+- 슬라이드에서 제시한 개념과 솔루션이 설계 문서에서 구체적인 프로세스와 다이어그램으로 확장됨
+
+##### 2.3 설계 문서 모드 (DocsApp) - 구체화 버전
+
+**핵심 개념**: 설계 문서 모드는 **프레젠테이션 모드와 대시보드 모드의 구체화된 상세 버전**입니다.
+
+- **프레젠테이션 모드의 구체화**: 프레젠테이션 슬라이드에서 제시한 내용을 기술적으로 상세히 설명
+  - Slide 1 (제목) → 프로젝트 개요 및 목적 상세 설명
+  - Slide 2 (문제점) → 문제 정의 및 해결 방안 상세 분석
+  - Slide 3 (솔루션) → 솔루션 아키텍처 및 구현 방법 상세 설명
+  - Slide 4 (아키텍처) → 시스템 아키텍처 다이어그램 및 상세 설계
+  - Slide 5 (이점) → 기능별 상세 설명 및 기술적 이점
+  - Slide 6 (로드맵) → 단계별 구현 계획 및 상세 프로세스
+  - Slide 7 (ROI) → 비용 분석 및 리소스 요구사항 상세
+
+- **대시보드 모드의 구체화**: 대시보드 프레임에서 보여준 내용을 기술 문서로 상세화
+  - Frame 1 (문제 정의) → 데이터 문제 정의 및 해결 방안 상세 문서
+  - Frame 2 (표준화) → 데이터 표준화 스키마 및 규칙 상세 정의
+  - Frame 3 (통합 플랫폼) → 데이터 통합 플랫폼 아키텍처 및 프로세스 상세
+  - Frame 4 (모니터링) → 실시간 모니터링 시스템 설계 및 알람 규칙 상세
+  - Frame 5 (자동 제어) → 원격 제어 및 OTA 프로세스 상세 설계
+  - Frame 6 (지능형 분석) → AI 기반 분석 엔진 설계 및 알고리즘 상세
+  - Frame 7 (활용 확장) → 데이터 활용 확장 계획 및 향후 로드맵 상세
+
+**구성**: 마크다운 문서 뷰어 및 Mermaid 다이어그램 렌더링
+  - **프로세스 플로우**: `PROCESS_FLOW.md` - 전체 시스템 프로세스를 Mermaid 다이어그램과 상세 설명으로 정리
+    - 프레젠테이션 슬라이드의 각 내용을 기술적으로 구체화
+    - 대시보드 프레임의 각 내용을 프로세스 다이어그램으로 시각화
+  - **프로젝트 분석**: `PROJECT_ANALYSIS.md` - 프로젝트 상세 분석 및 기술 스택
+    - 애플리케이션 아키텍처 상세 설명
+    - 컴포넌트 구조 및 역할 상세 정의
+  - **프로젝트 개요**: `README.md` - 프로젝트 개요 및 빠른 시작 가이드
+    - 설치 및 실행 방법
+    - 주요 기능 개요
+
+**URL 해시**: `#docs/{doc-id}/{section-id}` (예: `#docs/process-flow`)
+
+**기능**: 
+  - 마크다운 문서 파싱 및 섹션별 네비게이션
+  - Mermaid 다이어그램 렌더링 (확대/축소, 전체화면 지원)
+  - 프레젠테이션/대시보드와의 매핑 관계 표시
+  - 반응형 레이아웃
+
+**대상**: 
+- 모든 이해관계자
+- 프레젠테이션을 본 후 상세 내용을 확인하고 싶은 사용자
+- 대시보드를 본 후 기술적 세부사항을 확인하고 싶은 개발팀
+
+---
+
+## 주요 기술 스택 및 아키텍처 결정
+
+### Cold 데이터 저장소: Apache Iceberg + Athena
+
+**선택한 기술**:
+- **저장소**: Apache Iceberg 테이블 형식으로 S3에 저장
 - **쿼리 엔진**: Amazon Athena를 사용하여 Iceberg 테이블 SQL 쿼리
-- **장점**: ACID 트랜잭션, 스키마 진화, 파티션 진화, 시간 여행 쿼리, 파티션 프루닝으로 쿼리 비용 절감
+
+**선택 근거 및 장점**:
+
+1. **ACID 트랜잭션 지원**
+   - 데이터 일관성 보장
+   - 동시성 제어로 데이터 무결성 유지
+
+2. **스키마 진화 (Schema Evolution)**
+   - 시간에 따라 변화하는 데이터 구조에 유연하게 대응
+   - 기존 데이터와 호환성 유지하며 스키마 변경 가능
+
+3. **파티션 진화 (Partition Evolution)**
+   - 쿼리 패턴 변화에 따라 파티션 전략 변경 가능
+   - 성능 최적화를 위한 유연한 파티션 관리
+
+4. **시간 여행 쿼리 (Time Travel)**
+   - 과거 시점의 데이터 상태 조회 가능
+   - 데이터 변경 이력 추적 및 롤백 지원
+
+5. **파티션 프루닝 (Partition Pruning)**
+   - 필요한 파티션만 스캔하여 쿼리 비용 대폭 절감
+   - 대용량 데이터에서도 빠른 쿼리 성능
+
+**비용 효율성**: 
+- S3 스토리지 비용은 저렴하지만, 쿼리 비용이 주요 고려사항
+- 파티션 프루닝을 통해 불필요한 데이터 스캔을 최소화하여 비용 절감
+- Glacier 대비 실시간 쿼리 가능으로 분석 효율성 향상
 
 ---
 
 ## 1. 전체 로드맵 프로세스 (6단계)
+
+### 개요
+
+이 프로젝트는 **2026년 3월부터 시작하여 6개월 동안 6단계로 나누어 구현**됩니다. 각 단계는 이전 단계의 결과물을 기반으로 점진적으로 기능을 확장하며, 각 단계별로 독립적인 가치를 제공할 수 있도록 설계되었습니다.
+
+### 구현 전략
+
+- **점진적 구현**: 각 단계가 완료되면 즉시 활용 가능한 기능 제공
+- **위험 최소화**: 단계별 검증을 통해 프로젝트 리스크 관리
+- **비즈니스 가치**: 각 단계마다 명확한 비즈니스 가치 제공
+
+### 단계별 상세 설명
+
+#### 1단계: 데이터 통합 및 표준화 (2개월)
+**목표**: 분산된 데이터를 통합하고 표준화된 형식으로 변환
+
+**주요 작업**:
+- 다중 프로토콜(TCP/MQTT/API) 데이터 수집 인프라 구축
+- YAML 기반 데이터 변환 모듈 개발
+- 표준 스키마 정의 및 적용
+- 데이터 품질 검증 시스템 구축
+
+**기대 효과**: 
+- 데이터 통합으로 분석 기반 마련
+- 데이터 품질 향상으로 신뢰성 확보
+
+#### 2단계: 지능형 모니터링 시스템 (1개월)
+**목표**: 실시간 데이터 모니터링 및 알람 시스템 구축
+
+**주요 작업**:
+- 실시간 대시보드 개발
+- 알람 규칙 엔진 구축
+- 알람 오탐/미탐 최소화 알고리즘 적용
+
+**기대 효과**:
+- 실시간 상황 파악으로 대응 시간 단축
+- 알람 정확도 향상으로 운영 효율성 개선
+
+#### 3단계: 원격 제어 및 OTA (1개월)
+**목표**: 디바이스 원격 제어 및 펌웨어 업데이트 기능 제공
+
+**주요 작업**:
+- AWS IoT Device Shadow 기반 제어 시스템
+- OTA 업데이트 프로세스 자동화
+- 롤백 및 버전 관리 시스템
+
+**기대 효과**:
+- 현장 출동 없이 원격으로 문제 해결
+- 펌웨어 업데이트 자동화로 운영 비용 절감
+
+#### 4단계: 자동 진단 및 대응 (1개월)
+**목표**: AI 기반 이상 탐지 및 자동 대응 시스템 구축
+
+**주요 작업**:
+- 이상 탐지 모델 개발 및 학습
+- 근본 원인 분석(RCA) 엔진 구축
+- 자동 대응 워크플로우 구현
+
+**기대 효과**:
+- 장애 예방 및 조기 대응
+- 평균 복구 시간(MTTR) 단축
+
+#### 5단계: 맞춤 서비스 및 예측 분석 (1개월)
+**목표**: 고객사별 맞춤 서비스 및 예측 분석 기능 제공
+
+**주요 작업**:
+- 고객사별 SLA 관리 시스템
+- 예측 분석 모델 개발
+- 맞춤형 리포트 생성
+
+**기대 효과**:
+- 고객 만족도 향상
+- 사전 예방적 유지보수로 서비스 품질 개선
+
+#### 6단계: 지속적 개선 및 확장 (1개월)
+**목표**: 시스템 안정화 및 확장성 확보
+
+**주요 작업**:
+- 성능 최적화
+- 모니터링 및 로깅 강화
+- 확장 계획 수립
+
+**기대 효과**:
+- 시스템 안정성 및 확장성 확보
+- 지속적인 개선을 위한 기반 마련
 
 ```mermaid
 gantt
@@ -32,112 +463,66 @@ gantt
 
 ---
 
-## 2. 데이터 통합 플랫폼 프로세스
+## 2. 데이터 통합 플랫폼 프로세스 (전체 개요)
+
+### 개요
+
+이 섹션은 **전체 데이터 통합 플랫폼의 데이터 흐름과 라이프사이클**을 한눈에 보여주는 개요 다이어그램입니다. 
+
+### 데이터 흐름 개요
+
+시스템은 크게 **3가지 데이터 소스**에서 시작합니다:
+
+1. **원데이터 소스**: IoT/센서/측정 데이터 (TCP/MQTT/API를 통해 수집)
+2. **기초 정보 소스**: 마스터 데이터 (업체/고객/사용자/사이트/장비 정보)
+3. **공통 요소**: 통신 에러/품질 등 주기적으로 집계되는 데이터
+
+이 데이터들은 **Kinesis Data Streams**를 통해 통합 수집되며, 이후 다음과 같은 단계를 거칩니다:
+
+1. **컨버트 모듈**: YAML 기반 변환으로 다양한 형식의 데이터를 표준화
+2. **데이터 분류**: 제품별/고객별/디바이스별로 분류
+3. **스키마 검증**: Data Contract를 통한 데이터 품질 보장
+4. **표준화 변환**: Lambda를 통한 데이터 변환
+5. **기초 정보 조인**: RDS의 마스터 데이터와 조인하여 데이터 보강
+6. **데이터 보강**: 비즈니스 룰 적용
+7. **계층별 저장**: Hot/Warm/Cold 레이어로 분리 저장
+
+### 데이터 저장 계층 (Data Lake Architecture)
+
+시스템은 **3계층 데이터 레이어**로 구성되어 있습니다:
+
+#### Hot Layer (실시간 접근)
+- **저장소**: DynamoDB / OpenSearch
+- **용도**: 실시간 대시보드, 즉시 조회가 필요한 데이터
+- **특징**: 빠른 읽기/쓰기 성능, 실시간 쿼리 지원
+
+#### Warm Layer (빠른 조회)
+- **저장소**: RDS PostgreSQL
+- **용도**: 기초 정보 + 집계 결과, 분석 리포트
+- **특징**: 관계형 데이터 조인, 복잡한 쿼리 지원
+
+#### Cold Layer (장기 보관)
+- **저장소**: Apache Iceberg on S3 + Athena
+- **용도**: 원데이터 장기 보관, 히스토리 분석
+- **특징**: 저렴한 스토리지 비용, 대용량 데이터 분석, RDS와 조인 가능
+
+**목적**: 전체 데이터 통합 플랫폼의 데이터 흐름과 라이프사이클 개요를 시각적으로 이해
 
 ```mermaid
 flowchart TD
-    subgraph 기존시스템["기존 시스템 (온프레미스/하이브리드)"]
-        LegacyRDBMS[기존 RDBMS<br/>온프레미스]
-        LegacyNoSQL[기존 NoSQL<br/>온프레미스]
-        LegacyAPI[기존 API 서버<br/>온프레미스]
-        LegacySensor[기존 센서 시스템<br/>온프레미스]
-    end
-    
-    subgraph VPN터널링["VPN 터널링 계층 (내부망 통신)"]
-        VPNGateway[AWS VPN Gateway<br/>Site-to-Site VPN<br/>IPSec 터널]
-        VPCNetwork[VPC 내부 네트워크<br/>Private Subnet<br/>보안 그룹]
-    end
-    
     subgraph 원데이터소스["원데이터 소스 (측정/이벤트 데이터)"]
-        Source1[IoT Devices<br/>TCP/MQTT/API]
-        Source2[센서/측정 시스템<br/>TCP/MQTT]
-        Source3[이벤트 로그<br/>API/REST]
+        Source[IoT/센서/측정 데이터<br/>TCP/MQTT/API<br/>상세: 2-1 참조]
     end
     
     subgraph 기초정보소스["기초 정보 소스 (마스터 데이터)"]
-        Master1[RDBMS<br/>업체/고객/사용자 정보]
-        Master2[NoSQL<br/>사이트/장비 설정]
+        Master[RDBMS/NoSQL<br/>업체/고객/사용자/사이트/장비 정보]
     end
     
-    subgraph 인프라게이트웨이["인프라 게이트웨이 계층 (AWS)"]
-        TCPGateway[ECS 게이트웨이<br/>TCP 연결 수신]
-        APIGateway[API Gateway<br/>또는<br/>ECS 서비스]
-        MQTTGateway[IoT Core<br/>MQTT 브로커]
-    end
+    Source --> Collect[Kinesis Data Streams<br/>통합 수집<br/>상세: 2-1 참조]
+    Collect --> Convert[컨버트 모듈<br/>YAML 기반 변환<br/>상세: 2-1 참조]
+    Convert --> Classify[데이터 분류<br/>제품별/고객별/디바이스별<br/>상세: 2-1 참조]
     
-    LegacyRDBMS -->|VPN 터널링<br/>내부망| VPNGateway
-    LegacyNoSQL -->|VPN 터널링<br/>내부망| VPNGateway
-    LegacyAPI -->|VPN 터널링<br/>내부망| VPNGateway
-    LegacySensor -->|VPN 터널링<br/>내부망| VPNGateway
-    
-    VPNGateway -->|사설 IP 통신| VPCNetwork
-    VPCNetwork --> TCPGateway
-    VPCNetwork --> APIGateway
-    VPCNetwork --> Master1
-    VPCNetwork --> Master2
-    
-    subgraph 프로토콜어댑터["프로토콜 어댑터 계층"]
-        TCPAdapter[TCP 어댑터<br/>ECS 서비스<br/>Kinesis Producer]
-        MQTTAdapter[MQTT 어댑터<br/>IoT Core Rule<br/>Kinesis 연동]
-        APIAdapter[API 어댑터<br/>API Gateway + Lambda<br/>또는<br/>ECS 서비스<br/>Kinesis Producer]
-    end
-    
-    subgraph 데이터형식["데이터 형식 (센서 데이터)"]
-        HexBinary[헥사 바이너리<br/>Hex Binary]
-        JSONFormat[JSON 형식]
-        CSVFormat[CSV 형식]
-    end
-    
-    Source1 --> TCPGateway
-    Source1 --> MQTTGateway
-    Source1 --> APIGateway
-    Source2 --> TCPGateway
-    Source2 --> MQTTGateway
-    Source3 --> APIGateway
-    
-    TCPGateway --> TCPAdapter
-    APIGateway --> APIAdapter
-    MQTTGateway --> MQTTAdapter
-    
-    TCPAdapter --> HexBinary
-    TCPAdapter --> JSONFormat
-    TCPAdapter --> CSVFormat
-    MQTTAdapter --> HexBinary
-    MQTTAdapter --> JSONFormat
-    APIAdapter --> JSONFormat
-    
-    HexBinary --> Collect[Kinesis Data Streams<br/>통합 스트림<br/>원시 형식 보존]
-    JSONFormat --> Collect
-    CSVFormat --> Collect
-    
-    TCPAdapter -->|Kinesis Producer SDK| Collect
-    MQTTAdapter -->|IoT Core Rule| Collect
-    APIAdapter -->|Kinesis Producer SDK| Collect
-    
-    Collect --> Firehose[Kinesis Data Firehose<br/>원시 데이터 저장]
-    Firehose --> Raw[(S3 Raw Layer<br/>원시 페이로드 보존)]
-    
-    Collect --> ConvertLambda[컨버트 모듈<br/>Lambda Function<br/>Kinesis Trigger<br/>YAML 기반 변환]
-    
-    subgraph YAML관리["YAML 설정 관리"]
-        YAMLRepo[(YAML 저장소<br/>Git/S3<br/>버전 관리)]
-        YAMLDeploy[Lambda 패키지<br/>YAML 포함]
-        DLQ[(SQS DLQ<br/>데이터 누락 방지)]
-    end
-    
-    YAMLRepo -->|CI/CD 파이프라인| YAMLDeploy
-    YAMLDeploy -.->|배포 시 포함| ConvertLambda
-    
-    ConvertLambda --> ConvertSuccess{변환<br/>성공?}
-    ConvertSuccess -->|성공| StandardJSON[표준 JSON 형식<br/>통합 스키마]
-    ConvertSuccess -->|실패| DLQ
-    
-    DLQ --> DLQProcess[DLQ 처리<br/>재처리/분석]
-    
-    StandardJSON --> Classify[데이터 분류<br/>제품별/고객별/디바이스별]
-    
-    Master1 --> RDS[(RDS PostgreSQL<br/>기초 정보 데이터)]
-    Master2 --> RDS
+    Master --> RDS[(RDS PostgreSQL<br/>기초 정보 데이터)]
     
     Classify --> Common[공통 요소<br/>통신 에러/품질]
     Classify --> Product[제품별 데이터]
@@ -151,14 +536,11 @@ flowchart TD
     Customer --> Validate
     Device --> Validate
     
-    Validate -->|검증 실패| Error[오류 알림]
-    Validate -->|검증 성공| Transform[표준화 변환<br/>Lambda<br/>페이로드 변환]
-    
+    Validate -->|검증 성공| Transform[표준화 변환<br/>Lambda]
     Transform --> Join[기초 정보 조인<br/>RDS 참조]
     RDS -.->|조회| Join
     
     Join --> Standardized[(S3 Standardized Layer<br/>표준화 + 보강된 데이터)]
-    
     Standardized --> Enrich[데이터 보강<br/>비즈니스 룰]
     Enrich --> Curated[(S3 Curated Layer<br/>가공된 데이터)]
     
@@ -171,23 +553,37 @@ flowchart TD
     Cold --> Consumer3[히스토리 분석<br/>Athena SQL 쿼리<br/>RDS와 조인 가능]
     RDS -.->|참조| Consumer3
     
-    style Raw fill:#e1f5ff
-    style Standardized fill:#fff4e1
-    style Curated fill:#e8f5e9
-    style Hot fill:#ffebee
-    style Warm fill:#f3e5f5
-    style Cold fill:#e0f2f1
-    style RDS fill:#fff9c4
-    style ConvertLambda fill:#9C27B0,color:#fff
-    style YAMLRepo fill:#607D8B,color:#fff
-    style YAMLDeploy fill:#795548,color:#fff
-    style StandardJSON fill:#00BCD4,color:#fff
-    style DLQ fill:#F44336,color:#fff
+    style Source fill:#2196F3,color:#fff
+    style Master fill:#FFC107,color:#000
+    style Collect fill:#4CAF50,color:#fff
+    style Convert fill:#9C27B0,color:#fff
+    style Classify fill:#FF9800,color:#fff
+    style Common fill:#4CAF50,color:#fff
+    style Product fill:#9C27B0,color:#fff
+    style Customer fill:#2196F3,color:#fff
+    style Device fill:#FF9800,color:#fff
+    style Periodic fill:#4CAF50,color:#fff
+    style CommonDB fill:#FFC107,color:#000
+    style Validate fill:#FF9800,color:#fff
+    style Transform fill:#9C27B0,color:#fff
+    style Join fill:#9C27B0,color:#fff
+    style Standardized fill:#4CAF50,color:#fff
+    style Enrich fill:#9C27B0,color:#fff
+    style Curated fill:#4CAF50,color:#fff
+    style Hot fill:#2196F3,color:#fff
+    style Warm fill:#FFC107,color:#000
+    style Cold fill:#00BCD4,color:#fff
+    style RDS fill:#FFC107,color:#000
+    style Consumer1 fill:#2196F3,color:#fff
+    style Consumer2 fill:#FFC107,color:#000
+    style Consumer3 fill:#00BCD4,color:#fff
 ```
 
 ---
 
 ## 2-1. 실시간 데이터 수집 및 다중 프로토콜 통합 프로세스
+
+**목적**: 실시간 데이터 수집의 상세 프로세스 (프로토콜별 처리, YAML 변환, 데이터 분류 및 라우팅)
 
 ```mermaid
 flowchart TD
@@ -195,43 +591,43 @@ flowchart TD
         LegacySystem[기존 시스템<br/>RDBMS/NoSQL/API/센서]
     end
     
-    subgraph VPN터널링["VPN 터널링 계층 (내부망 통신)"]
-        VPNGateway[AWS VPN Gateway<br/>Site-to-Site VPN<br/>IPSec 터널]
-        VPCNetwork[VPC 내부 네트워크<br/>Private Subnet<br/>보안 그룹]
+    subgraph VPN터널링["VPN 터널링 계층"]
+        VPNGateway[AWS VPN Gateway<br/>Site-to-Site VPN]
+        VPCNetwork[VPC 내부 네트워크]
     end
     
-    subgraph 다중프로토콜["다중 프로토콜 수집 계층 (실시간)"]
-        TCP[TCP 연결<br/>바이너리/텍스트 프로토콜]
-        MQTT[MQTT 브로커<br/>Pub/Sub 메시징]
-        API[REST API<br/>JSON/XML 페이로드]
+    subgraph 다중프로토콜["다중 프로토콜 수집 계층"]
+        TCP[TCP 연결]
+        MQTT[MQTT 브로커]
+        API[REST API]
     end
     
-    subgraph 인프라게이트웨이["인프라 게이트웨이 계층 (AWS)"]
-        TCPGateway[ECS 게이트웨이<br/>TCP 연결 수신<br/>Container Service]
-        APIGateway[API Gateway<br/>REST API 엔드포인트<br/>또는<br/>ECS 서비스]
+    subgraph 인프라게이트웨이["인프라 게이트웨이 계층"]
+        TCPGateway[ECS 게이트웨이<br/>TCP 연결 수신]
+        APIGateway[API Gateway<br/>또는 ECS 서비스]
         MQTTGateway[IoT Core<br/>MQTT 브로커]
     end
     
-    LegacySystem -->|VPN 터널링<br/>내부망 통신| VPNGateway
-    VPNGateway -->|사설 IP 통신| VPCNetwork
+    LegacySystem -->|VPN 터널링| VPNGateway
+    VPNGateway --> VPCNetwork
     VPCNetwork --> TCPGateway
     VPCNetwork --> APIGateway
-    
-    subgraph 프로토콜어댑터["프로토콜 어댑터 계층"]
-        TCPAdapter[TCP 어댑터<br/>ECS 서비스<br/>Kinesis Producer]
-        MQTTAdapter[MQTT 어댑터<br/>IoT Core Rule<br/>Kinesis 연동]
-        APIAdapter[API 어댑터<br/>API Gateway + Lambda<br/>또는<br/>ECS 서비스<br/>Kinesis Producer]
-    end
-    
-    subgraph 데이터형식["데이터 형식 (센서 데이터)"]
-        HexBinary[헥사 바이너리<br/>Hex Binary]
-        JSONFormat[JSON 형식]
-        CSVFormat[CSV 형식]
-    end
     
     TCP --> TCPGateway
     MQTT --> MQTTGateway
     API --> APIGateway
+    
+    subgraph 프로토콜어댑터["프로토콜 어댑터 계층"]
+        TCPAdapter[TCP 어댑터<br/>ECS + Kinesis Producer SDK]
+        MQTTAdapter[MQTT 어댑터<br/>IoT Core Rule → Kinesis]
+        APIAdapter[API 어댑터<br/>API Gateway/Lambda/ECS<br/>+ Kinesis Producer SDK]
+    end
+    
+    subgraph 데이터형식["데이터 형식"]
+        HexBinary[헥사 바이너리]
+        JSONFormat[JSON]
+        CSVFormat[CSV]
+    end
     
     TCPGateway --> TCPAdapter
     APIGateway --> APIAdapter
@@ -245,47 +641,46 @@ flowchart TD
     APIAdapter --> JSONFormat
     
     subgraph 통합스트림["통합 스트림 계층"]
-        KinesisStream[Kinesis Data Streams<br/>통합 데이터 스트림<br/>원시 형식 보존]
+        KinesisStream[Kinesis Data Streams<br/>원시 형식 보존]
     end
     
-    TCPAdapter -->|Kinesis Producer SDK<br/>헥사/JSON/CSV| KinesisStream
-    MQTTAdapter -->|IoT Core Rule<br/>헥사/JSON| KinesisStream
-    APIAdapter -->|Kinesis Producer SDK<br/>JSON| KinesisStream
+    TCPAdapter -->|Kinesis Producer SDK| KinesisStream
+    MQTTAdapter -->|IoT Core Rule| KinesisStream
+    APIAdapter -->|Kinesis Producer SDK| KinesisStream
+    
+    KinesisStream --> Firehose[Kinesis Data Firehose]
+    Firehose --> RawS3[(S3 Raw Layer<br/>원시 페이로드 보존)]
     
     subgraph 컨버트모듈["컨버트 모듈 (Kinesis 뒤)"]
-        ConvertLambda[Lambda Function<br/>컨버트 모듈<br/>YAML 기반 변환]
-        
+        ConvertLambda[Lambda Function<br/>YAML 기반 변환]
         ConvertLambda --> ConvertSuccess{변환<br/>성공?}
-        ConvertSuccess -->|성공| StandardJSON[표준 JSON 형식<br/>통합 스키마]
-        ConvertSuccess -->|실패| DLQ[(SQS DLQ<br/>Dead Letter Queue<br/>데이터 누락 방지)]
-        
-        DLQ --> DLQProcess[DLQ 처리<br/>Lambda/ECS<br/>재처리/분석]
+        ConvertSuccess -->|성공| StandardJSON[표준 JSON 형식]
+        ConvertSuccess -->|실패| DLQ[(SQS DLQ<br/>데이터 누락 방지)]
+        DLQ --> DLQProcess[DLQ 처리<br/>재처리/분석]
         DLQProcess --> Alert[오류 알림<br/>SNS]
-        DLQProcess --> Retry[재시도<br/>또는<br/>수동 처리]
     end
     
     subgraph YAML관리["YAML 설정 관리"]
-        YAMLRepo[(YAML 설정 저장소<br/>Git/S3<br/>버전 관리)]
+        YAMLRepo[(YAML 저장소<br/>Git/S3<br/>버전 관리)]
         YAMLDeploy[Lambda 배포 패키지<br/>YAML 포함]
     end
     
-    YAMLRepo -->|CI/CD 파이프라인| YAMLDeploy
+    YAMLRepo -->|CI/CD| YAMLDeploy
     YAMLDeploy -.->|배포 시 포함| ConvertLambda
-    
     KinesisStream -->|Kinesis Trigger| ConvertLambda
     
     StandardJSON --> Classify[데이터 분류<br/>Lambda Function]
     
     subgraph 데이터분류["데이터 분류 및 라우팅"]
-        Classify --> Common[공통 요소 추출<br/>통신 에러/통신 품질]
+        Classify --> Common[공통 요소<br/>통신 에러/품질]
         Classify --> Product[제품별 데이터]
         Classify --> Customer[고객별 데이터]
         Classify --> Device[디바이스별 데이터]
     end
     
     subgraph 공통요소처리["공통 요소 처리 (주기 데이터)"]
-        Common --> Periodic[주기 집계<br/>Kinesis Analytics<br/>시간 단위 집계]
-        Periodic --> CommonDB[(RDS<br/>통신 에러 통계<br/>통신 품질 지표)]
+        Common --> Periodic[주기 집계<br/>Kinesis Analytics]
+        Periodic --> CommonDB[(RDS<br/>통신 통계)]
         Periodic --> CommonArchive[(S3<br/>주기 데이터 아카이브)]
     end
     
@@ -312,23 +707,54 @@ flowchart TD
         DeviceAlarm --> Notification[알림 발송<br/>SNS]
     end
     
-    subgraph 원시데이터저장["원시 데이터 저장"]
-        KinesisStream --> Firehose[Kinesis Data Firehose<br/>배치 저장]
-        Firehose --> RawS3[(S3 Raw Layer<br/>원시 페이로드 보존)]
-    end
-    
+    style LegacySystem fill:#2196F3,color:#fff
+    style VPNGateway fill:#FF9800,color:#fff
+    style VPCNetwork fill:#FF9800,color:#fff
+    style TCP fill:#2196F3,color:#fff
+    style MQTT fill:#2196F3,color:#fff
+    style API fill:#2196F3,color:#fff
+    style TCPGateway fill:#FF9800,color:#fff
+    style APIGateway fill:#FF9800,color:#fff
+    style MQTTGateway fill:#FF9800,color:#fff
+    style TCPAdapter fill:#9C27B0,color:#fff
+    style MQTTAdapter fill:#9C27B0,color:#fff
+    style APIAdapter fill:#9C27B0,color:#fff
+    style HexBinary fill:#9C27B0,color:#fff
+    style JSONFormat fill:#9C27B0,color:#fff
+    style CSVFormat fill:#9C27B0,color:#fff
     style KinesisStream fill:#4CAF50,color:#fff
-    style Classify fill:#FF9800,color:#fff
+    style Firehose fill:#4CAF50,color:#fff
+    style RawS3 fill:#4CAF50,color:#fff
     style ConvertLambda fill:#9C27B0,color:#fff
-    style YAMLRepo fill:#607D8B,color:#fff
-    style YAMLDeploy fill:#795548,color:#fff
-    style StandardJSON fill:#00BCD4,color:#fff
+    style ConvertSuccess fill:#FF9800,color:#fff
+    style StandardJSON fill:#4CAF50,color:#fff
     style DLQ fill:#F44336,color:#fff
-    style CommonDB fill:#fff9c4
-    style ProductRule fill:#ffebee
-    style DeviceRule fill:#ffebee
-    style AlarmDB fill:#e3f2fd
-    style RawS3 fill:#e1f5ff
+    style DLQProcess fill:#F44336,color:#fff
+    style Alert fill:#F44336,color:#fff
+    style YAMLRepo fill:#607D8B,color:#fff
+    style YAMLDeploy fill:#607D8B,color:#fff
+    style Classify fill:#FF9800,color:#fff
+    style Common fill:#4CAF50,color:#fff
+    style Product fill:#9C27B0,color:#fff
+    style Customer fill:#2196F3,color:#fff
+    style Device fill:#FF9800,color:#fff
+    style Periodic fill:#4CAF50,color:#fff
+    style CommonDB fill:#FFC107,color:#000
+    style CommonArchive fill:#4CAF50,color:#fff
+    style ProductStream fill:#9C27B0,color:#fff
+    style ProductRule fill:#9C27B0,color:#fff
+    style ProductDB fill:#9C27B0,color:#fff
+    style ProductAlarm fill:#F44336,color:#fff
+    style CustomerStream fill:#2196F3,color:#fff
+    style CustomerDB fill:#2196F3,color:#fff
+    style CustomerDashboard fill:#2196F3,color:#fff
+    style DeviceStream fill:#FF9800,color:#fff
+    style DeviceRule fill:#FF9800,color:#fff
+    style AlarmEval fill:#FF9800,color:#fff
+    style DeviceAlarm fill:#F44336,color:#fff
+    style Continue fill:#4CAF50,color:#fff
+    style AlarmDB fill:#F44336,color:#fff
+    style Notification fill:#F44336,color:#fff
 ```
 
 ### 인프라 게이트웨이 및 프로토콜별 처리 특성
@@ -608,11 +1034,22 @@ flowchart TD
     
     BatchS3 --> Process[후속 처리<br/>Standardized/Curated]
     
+    style FTP fill:#2196F3,color:#fff
+    style S3File fill:#2196F3,color:#fff
     style Schedule fill:#FF9800,color:#fff
+    style Trigger fill:#FF9800,color:#fff
     style BatchJob fill:#9C27B0,color:#fff
-    style BatchS3 fill:#e1f5ff
+    style FileRead fill:#9C27B0,color:#fff
+    style FileParse fill:#9C27B0,color:#fff
+    style BatchConvert fill:#9C27B0,color:#fff
+    style BatchValidate fill:#FF9800,color:#fff
+    style BatchJSON fill:#4CAF50,color:#fff
     style BatchError fill:#F44336,color:#fff
-    style BatchAlert fill:#ffebee
+    style BatchS3 fill:#4CAF50,color:#fff
+    style BatchKinesis fill:#4CAF50,color:#fff
+    style BatchAlert fill:#F44336,color:#fff
+    style BatchReport fill:#2196F3,color:#fff
+    style Process fill:#4CAF50,color:#fff
 ```
 
 ### 파일 배치 처리 특징
@@ -697,12 +1134,44 @@ flowchart TD
     RuleUpdate --> RDSRules
     Learn --> Continue
     
-    style CreateAlarm fill:#ffebee
-    style AutoAction fill:#e8f5e9
-    style Resolved fill:#e3f2fd
-    style Filter fill:#fff9c4
-    style RDSRules fill:#fff9c4
-    style RuleConfig fill:#f3e5f5
+    style Data fill:#4CAF50,color:#fff
+    style Identify fill:#2196F3,color:#fff
+    style ProductType fill:#FF9800,color:#fff
+    style Product1 fill:#9C27B0,color:#fff
+    style Product2 fill:#9C27B0,color:#fff
+    style Product3 fill:#9C27B0,color:#fff
+    style ProductN fill:#9C27B0,color:#fff
+    style Rules1 fill:#9C27B0,color:#fff
+    style Rules2 fill:#9C27B0,color:#fff
+    style Rules3 fill:#9C27B0,color:#fff
+    style RulesN fill:#9C27B0,color:#fff
+    style Threshold1 fill:#FF9800,color:#fff
+    style Threshold2 fill:#FF9800,color:#fff
+    style Anomaly1 fill:#FF9800,color:#fff
+    style Anomaly2 fill:#FF9800,color:#fff
+    style Correlation1 fill:#FF9800,color:#fff
+    style Correlation2 fill:#FF9800,color:#fff
+    style Predictive1 fill:#00BCD4,color:#fff
+    style Predictive2 fill:#00BCD4,color:#fff
+    style Evaluate fill:#FF9800,color:#fff
+    style Continue fill:#4CAF50,color:#fff
+    style Filter fill:#FF9800,color:#fff
+    style FilterOut fill:#9E9E9E,color:#fff
+    style CreateAlarm fill:#F44336,color:#fff
+    style RuleConfig fill:#FFC107,color:#000
+    style RDSRules fill:#FFC107,color:#000
+    style Priority fill:#FF9800,color:#fff
+    style AutoAction fill:#4CAF50,color:#fff
+    style Notify fill:#F44336,color:#fff
+    style Queue fill:#FF9800,color:#fff
+    style Log fill:#9E9E9E,color:#fff
+    style Result fill:#FF9800,color:#fff
+    style Resolved fill:#4CAF50,color:#fff
+    style Escalate fill:#F44336,color:#fff
+    style Ticket fill:#2196F3,color:#fff
+    style ManualAction fill:#F44336,color:#fff
+    style Learn fill:#00BCD4,color:#fff
+    style RuleUpdate fill:#4CAF50,color:#fff
 ```
 
 ---
@@ -836,28 +1305,177 @@ flowchart TD
     Learn --> Update[모델 개선]
     Update --> Analysis
     
-    Manual --> Resolved[해결 완료]
+    Manual --> ServiceDispatch{서비스 기사<br/>출동 필요?}
+    
+    ServiceDispatch -->|물리적 개입 필요| FieldService[서비스 기사 출동<br/>현장 진단/수리/부품 교체]
+    ServiceDispatch -->|원격 지원 가능| RemoteSupport[원격 기술 지원<br/>가이드 제공]
+    
+    FieldService --> FieldReport[출동 리포트<br/>진단 결과/조치 내용]
+    RemoteSupport --> RemoteReport[원격 지원 리포트<br/>해결 방법]
+    
+    FieldReport --> Resolved[해결 완료]
+    RemoteReport --> Resolved
+    
     Resolved --> Record
     
-    style Execute fill:#e8f5e9
-    style Verify fill:#fff9c4
-    style Success fill:#e3f2fd
-    style Manual fill:#ffebee
+    Record --> ProductData[제품 개선 기초 데이터<br/>S3 + Iceberg 저장]
+    ProductData --> Analytics[제품 분석<br/>고장 패턴/성능 지표]
+    Analytics --> Improvement[제품 개선<br/>설계/펌웨어 최적화]
+    Improvement --> OTAUpdate[OTA 업데이트<br/>개선 사항 반영]
+    OTAUpdate --> Alarm
+    
+    style Alarm fill:#F44336,color:#fff
+    style Collect fill:#2196F3,color:#fff
+    style Analysis fill:#00BCD4,color:#fff
+    style PatternMatch fill:#00BCD4,color:#fff
+    style AIModel fill:#00BCD4,color:#fff
+    style Solution fill:#FF9800,color:#fff
+    style AutoFix fill:#FF9800,color:#fff
+    style Execute fill:#4CAF50,color:#fff
+    style Action1 fill:#4CAF50,color:#fff
+    style Action2 fill:#4CAF50,color:#fff
+    style Action3 fill:#4CAF50,color:#fff
+    style Action4 fill:#4CAF50,color:#fff
+    style Verify fill:#FF9800,color:#fff
+    style Success fill:#FF9800,color:#fff
+    style Record fill:#2196F3,color:#fff
+    style Retry fill:#FF9800,color:#fff
+    style Learn fill:#00BCD4,color:#fff
+    style Update fill:#4CAF50,color:#fff
+    style Manual fill:#F44336,color:#fff
+    style ServiceDispatch fill:#FF9800,color:#fff
+    style FieldService fill:#F44336,color:#fff
+    style RemoteSupport fill:#F44336,color:#fff
+    style FieldReport fill:#2196F3,color:#fff
+    style RemoteReport fill:#2196F3,color:#fff
+    style Resolved fill:#4CAF50,color:#fff
+    style ProductData fill:#00BCD4,color:#fff
+    style Analytics fill:#00BCD4,color:#fff
+    style Improvement fill:#00BCD4,color:#fff
+    style OTAUpdate fill:#4CAF50,color:#fff
 ```
+
+---
+
+## 6-1. 핵심 운영 사이클: 무중단 서비스 지원 프로세스
+
+**목표**: 데이터 수집 → 모니터링 → 알림 발생 → 제어/OTA 처리 → 기사 출동 처리 → 제품 개선을 통한 무중단 서비스 지원
+
+```mermaid
+flowchart TD
+    subgraph 수집["1. 데이터 수집"]
+        DataSource[IoT/센서/측정 데이터<br/>TCP/MQTT/API]
+        DataSource --> Kinesis[Kinesis Data Streams<br/>통합 수집]
+        Kinesis --> Convert[컨버트 모듈<br/>YAML 기반 변환]
+        Convert --> Standard[표준 JSON 형식]
+    end
+    
+    subgraph 모니터링["2. 모니터링"]
+        Standard --> Monitor[실시간 모니터링<br/>제품별 룰셋 적용]
+        Monitor --> RuleEngine[룰 엔진<br/>임계값/패턴/예측]
+        RuleEngine --> Eval{조건 평가}
+    end
+    
+    subgraph 알림["3. 알림 발생"]
+        Eval -->|조건 만족| Alarm[알람 생성<br/>제품별 심각도]
+        Alarm --> Notify[알림 발송<br/>SNS/대시보드]
+    end
+    
+    subgraph 제어["4. 제어/OTA 처리"]
+        Notify --> AutoAction{자동 대응<br/>가능?}
+        AutoAction -->|가능| Shadow[Shadow 제어<br/>원격 명령]
+        AutoAction -->|가능| OTA[OTA 업데이트<br/>펌웨어 패치]
+        Shadow --> Verify1[결과 검증]
+        OTA --> Verify1
+        Verify1 --> Success1{해결 성공?}
+        Success1 -->|Yes| Resolved1[해결 완료]
+        Success1 -->|No| Escalate[에스컬레이션]
+    end
+    
+    subgraph 기사출동["5. 기사 출동 처리"]
+        AutoAction -->|불가능| Dispatch{기사 출동<br/>필요?}
+        Escalate --> Dispatch
+        Dispatch -->|물리적 개입| FieldService[서비스 기사 출동<br/>현장 진단/수리]
+        Dispatch -->|원격 지원| RemoteSupport[원격 기술 지원]
+        FieldService --> FieldReport[출동 리포트]
+        RemoteSupport --> RemoteReport[원격 지원 리포트]
+        FieldReport --> Resolved2[해결 완료]
+        RemoteReport --> Resolved2
+    end
+    
+    subgraph 제품개선["6. 제품 개선 (기초 데이터)"]
+        Resolved1 --> DataStore[해결 데이터 저장<br/>S3 + Iceberg]
+        Resolved2 --> DataStore
+        DataStore --> Analytics[제품 분석<br/>고장 패턴/성능 지표]
+        Analytics --> Improvement[제품 개선<br/>설계/펌웨어 최적화]
+        Improvement --> Deploy[개선 사항 배포<br/>OTA 업데이트]
+        Deploy --> DataSource
+    end
+    
+    style DataSource fill:#2196F3,color:#fff
+    style Kinesis fill:#4CAF50,color:#fff
+    style Convert fill:#9C27B0,color:#fff
+    style Standard fill:#4CAF50,color:#fff
+    style Monitor fill:#FF9800,color:#fff
+    style RuleEngine fill:#FF9800,color:#fff
+    style Eval fill:#FF9800,color:#fff
+    style Alarm fill:#F44336,color:#fff
+    style Notify fill:#F44336,color:#fff
+    style AutoAction fill:#FF9800,color:#fff
+    style Shadow fill:#4CAF50,color:#fff
+    style OTA fill:#4CAF50,color:#fff
+    style Verify1 fill:#FF9800,color:#fff
+    style Success1 fill:#FF9800,color:#fff
+    style Resolved1 fill:#4CAF50,color:#fff
+    style Escalate fill:#F44336,color:#fff
+    style Dispatch fill:#FF9800,color:#fff
+    style FieldService fill:#F44336,color:#fff
+    style RemoteSupport fill:#F44336,color:#fff
+    style FieldReport fill:#2196F3,color:#fff
+    style RemoteReport fill:#2196F3,color:#fff
+    style Resolved2 fill:#4CAF50,color:#fff
+    style DataStore fill:#00BCD4,color:#fff
+    style Analytics fill:#00BCD4,color:#fff
+    style Improvement fill:#00BCD4,color:#fff
+    style Deploy fill:#4CAF50,color:#fff
+```
+
+### 핵심 사이클 특징
+
+1. **데이터 수집**: 다중 프로토콜(TCP/MQTT/API)을 통한 실시간 데이터 수집 및 통합
+2. **모니터링**: 제품별 룰셋 기반 실시간 모니터링 및 이상 감지
+3. **알림 발생**: 제품별 심각도에 따른 알림 발송 및 대응 우선순위 결정
+4. **제어/OTA 처리**: 자동 대응 가능 시 Shadow 제어 또는 OTA 업데이트로 원격 해결
+5. **기사 출동 처리**: 자동 대응 불가능 시 서비스 기사 출동 또는 원격 기술 지원
+6. **제품 개선**: 해결 데이터를 기초 데이터로 저장하여 제품 분석 및 개선에 활용
+
+### 무중단 서비스 지원
+
+- **자동 대응 우선**: Shadow 제어 및 OTA를 통한 원격 해결로 기사 출동 최소화
+- **빠른 대응**: 실시간 모니터링 및 자동 알림으로 즉각 대응
+- **지속적 개선**: 해결 데이터 축적을 통한 제품 개선 및 알람 룰셋 최적화
+- **피드백 루프**: 제품 개선 사항이 OTA를 통해 배포되어 동일 문제 재발 방지
+
+### 제품 개선을 위한 기초 데이터
+
+- **해결 데이터 저장**: 모든 해결 과정(자동/수동)의 데이터를 S3 + Iceberg에 저장
+- **제품 분석**: 고장 패턴, 성능 지표, 고객 피드백 등을 분석
+- **개선 반영**: 분석 결과를 바탕으로 제품 설계, 펌웨어, 알람 룰셋 개선
+- **순환 구조**: 개선 사항이 OTA로 배포되어 새로운 데이터 수집으로 이어지는 순환 구조
 
 ---
 
 ## 7. 통신 오류 배치 체크 프로세스
 
 ```mermaid
-flowchart LR
+flowchart TD
     Schedule[EventBridge<br/>스케줄러] -->|매 정시| Trigger[Lambda 트리거]
     
-    Trigger --> Query[최근 60분<br/>통신 데이터<br/>쿼리]
+    Trigger --> Query[최근 60분<br/>통신 데이터 쿼리]
     
     Query --> Aggregate[집계 분석<br/>고객사/허브/디바이스별]
     
-    Aggregate --> Check{미수신<br/>임계치<br/>초과?}
+    Aggregate --> Check{미수신<br/>임계치 초과?}
     
     Check -->|정상| End1[정상 종료]
     Check -->|이상| Grace{지연 허용<br/>그레이스 기간<br/>10분 고려}
@@ -871,190 +1489,166 @@ flowchart LR
     Alert --> Notify[고객사/운영팀<br/>알림 전송]
     Alert --> Ticket[티켓 생성]
     
-    Notify --> Log[이벤트 로그<br/>기록]
+    Notify --> Log[이벤트 로그 기록]
     Ticket --> Log
     
     Log --> End3[프로세스 완료]
     
-    style Alert fill:#ffebee
-    style Notify fill:#fff9c4
-    style Ticket fill:#e3f2fd
+    style Schedule fill:#FF9800,color:#fff
+    style Trigger fill:#FF9800,color:#fff
+    style Query fill:#2196F3,color:#fff
+    style Aggregate fill:#4CAF50,color:#fff
+    style Check fill:#FF9800,color:#fff
+    style End1 fill:#4CAF50,color:#fff
+    style Grace fill:#FF9800,color:#fff
+    style Count fill:#FF9800,color:#fff
+    style End2 fill:#9E9E9E,color:#fff
+    style Alert fill:#F44336,color:#fff
+    style Notify fill:#F44336,color:#fff
+    style Ticket fill:#2196F3,color:#fff
+    style Log fill:#9E9E9E,color:#fff
+    style End3 fill:#4CAF50,color:#fff
 ```
 
 ---
 
 ## 8. 전체 시스템 아키텍처 프로세스
 
+**목적**: 전체 시스템의 계층별 구성과 데이터 흐름 개요
+
 ```mermaid
-graph TB
-    subgraph "기존 시스템 (온프레미스)"
-        LegacyRDBMS[기존 RDBMS]
-        LegacyNoSQL[기존 NoSQL]
-        LegacyAPI[기존 API 서버]
-        LegacySensor[기존 센서 시스템]
+flowchart TD
+    subgraph 기존시스템["기존 시스템"]
+        Legacy[기존 시스템<br/>RDBMS/NoSQL/API/센서]
     end
     
-    subgraph "VPN 터널링 계층"
-        VPNGateway[AWS VPN Gateway<br/>Site-to-Site VPN<br/>IPSec 터널]
-        VPCNetwork[VPC 내부 네트워크<br/>Private Subnet]
+    subgraph VPN["VPN 터널링"]
+        VPNGateway[VPN Gateway]
+        VPCNetwork[VPC 네트워크]
     end
     
-    subgraph "데이터 수집 계층"
-        IoT[IoT Devices<br/>TCP/MQTT/API]
-        Sensors[센서/측정 시스템<br/>TCP/MQTT]
-        RDBMS[RDBMS<br/>기초 정보]
-        NoSQL[NoSQL<br/>기초 정보]
+    subgraph 수집["데이터 수집"]
+        IoT[IoT/센서<br/>TCP/MQTT/API]
+        Master[기초 정보<br/>RDBMS/NoSQL]
     end
     
-    subgraph "인프라 게이트웨이 계층 (AWS)"
-        TCPGateway[ECS 게이트웨이<br/>TCP 연결 수신]
-        APIGateway[API Gateway<br/>또는<br/>ECS 서비스]
-        MQTTGateway[IoT Core<br/>MQTT 브로커]
+    subgraph 게이트웨이["게이트웨이"]
+        TCPGW[ECS Gateway]
+        APIGW[API Gateway]
+        MQTTGW[IoT Core]
     end
     
-    LegacyRDBMS -->|VPN 터널링<br/>내부망| VPNGateway
-    LegacyNoSQL -->|VPN 터널링<br/>내부망| VPNGateway
-    LegacyAPI -->|VPN 터널링<br/>내부망| VPNGateway
-    LegacySensor -->|VPN 터널링<br/>내부망| VPNGateway
-    
-    VPNGateway -->|사설 IP 통신| VPCNetwork
-    VPCNetwork --> TCPGateway
-    VPCNetwork --> APIGateway
-    VPCNetwork --> RDBMS
-    VPCNetwork --> NoSQL
-    
-    subgraph "프로토콜 어댑터 계층"
-        TCPAdapter[TCP 어댑터<br/>ECS 서비스<br/>Kinesis Producer]
-        MQTTAdapter[MQTT 어댑터<br/>IoT Core Rule<br/>Kinesis 연동]
-        APIAdapter[API 어댑터<br/>API Gateway + Lambda<br/>또는<br/>ECS 서비스<br/>Kinesis Producer]
+    subgraph 어댑터["프로토콜 어댑터"]
+        TCPAdp[TCP 어댑터]
+        MQTTAdp[MQTT 어댑터]
+        APIAdp[API 어댑터]
     end
     
-    subgraph "데이터 플랫폼 계층"
-        Kinesis[Kinesis Data Streams<br/>통합 스트림<br/>원시 형식]
-        ConvertLambda[컨버트 모듈<br/>Lambda Function<br/>Kinesis Trigger<br/>YAML 기반 변환]
-        DLQ[(SQS DLQ<br/>데이터 누락 방지)]
-        Classify[데이터 분류<br/>Lambda]
-        Lambda1[Lambda Functions<br/>추가 변환/보강]
-        S3[S3 Data Lake<br/>Raw/Standardized/Curated]
-        Periodic[주기 집계<br/>Kinesis Analytics]
+    subgraph 플랫폼["데이터 플랫폼"]
+        Kinesis[Kinesis Streams]
+        Convert[컨버트 모듈<br/>YAML 변환]
+        Classify[데이터 분류]
+        S3[S3 Data Lake]
     end
     
-    subgraph "YAML 설정 관리"
-        YAMLRepo[(YAML 저장소<br/>Git/S3<br/>버전 관리)]
-        YAMLDeploy[Lambda 패키지<br/>YAML 포함]
+    subgraph 분석["분석 엔진"]
+        Rules[룰 엔진]
+        ML[ML/AI 모델]
+        EventBridge[EventBridge]
     end
     
-    subgraph "분석 엔진 계층"
-        Rules[룰 엔진<br/>제품별 룰셋]
-        ProductRules[제품별<br/>알람 룰셋<br/>관리]
-        ML[SageMaker<br/>ML 모델<br/>제품별]
-        Bedrock[Bedrock<br/>LLM 분석]
-        Forecast[Forecast<br/>예측 분석]
-    end
-    
-    subgraph "자동화 제어 계층"
-        Shadow[IoT Device Shadow]
+    subgraph 제어["자동화 제어"]
+        Shadow[Device Shadow]
         OTA[OTA Service]
-        EventBridge[EventBridge<br/>이벤트 오케스트레이션]
-        Lambda2[Lambda Functions<br/>자동 대응]
+        Lambda[Lambda Functions]
     end
     
-    subgraph "모니터링 및 알림"
-        CloudWatch[CloudWatch<br/>모니터링]
-        SNS[SNS<br/>알림]
-        Dashboard[실시간 대시보드]
+    subgraph 모니터링["모니터링"]
+        CloudWatch[CloudWatch]
+        SNS[SNS 알림]
+        Dashboard[대시보드]
     end
     
-    subgraph "데이터 저장소"
-        DynamoDB[(DynamoDB<br/>Hot Data<br/>제품별/디바이스별)]
-        CommonDB[(RDS<br/>통신 통계<br/>공통 요소)]
-        RDS[(RDS PostgreSQL<br/>기초 정보 데이터<br/>+ 집계 결과<br/>+ 제품별 룰셋)]
-        RDSRules[(RDS<br/>제품별<br/>알람 룰셋)]
-        S3Archive[(S3 + Iceberg<br/>Cold Data<br/>원데이터)]
+    subgraph 저장소["데이터 저장소"]
+        DynamoDB[(DynamoDB<br/>Hot)]
+        RDS[(RDS<br/>기초정보/집계)]
+        S3Archive[(S3+Iceberg<br/>Cold)]
     end
     
-    IoT --> TCPGateway
-    IoT --> MQTTGateway
-    IoT --> APIGateway
-    Sensors --> TCPGateway
-    Sensors --> MQTTGateway
+    Legacy -->|VPN| VPNGateway
+    VPNGateway --> VPCNetwork
+    VPCNetwork --> TCPGW
+    VPCNetwork --> APIGW
+    VPCNetwork --> Master
     
-    TCPGateway --> TCPAdapter
-    APIGateway --> APIAdapter
-    MQTTGateway --> MQTTAdapter
+    IoT --> TCPGW
+    IoT --> MQTTGW
+    IoT --> APIGW
     
-    TCPAdapter -->|Kinesis Producer SDK<br/>헥사/JSON/CSV<br/>원시 형식| Kinesis
-    MQTTAdapter -->|IoT Core Rule<br/>헥사/JSON<br/>원시 형식| Kinesis
-    APIAdapter -->|Kinesis Producer SDK<br/>JSON<br/>원시 형식| Kinesis
+    TCPGW --> TCPAdp
+    APIGW --> APIAdp
+    MQTTGW --> MQTTAdp
     
-    Kinesis -->|Kinesis Trigger| ConvertLambda
-    YAMLRepo -->|CI/CD 파이프라인| YAMLDeploy
-    YAMLDeploy -.->|배포 시 포함| ConvertLambda
+    TCPAdp --> Kinesis
+    MQTTAdp --> Kinesis
+    APIAdp --> Kinesis
     
-    ConvertLambda -->|성공| Classify
-    ConvertLambda -->|실패| DLQ
-    Classify --> Common[공통 요소<br/>통신 에러/품질]
-    Classify --> Product[제품별 데이터]
-    Classify --> Customer[고객별 데이터]
-    Classify --> Device[디바이스별 데이터]
+    Kinesis --> Convert
+    Convert --> Classify
+    Classify --> S3
+    Classify --> Rules
     
-    Common --> Periodic
-    Periodic --> CommonDB[(RDS<br/>통신 통계)]
-    
-    Product --> Lambda1
-    Customer --> Lambda1
-    Device --> Lambda1
-    
-    Lambda1 --> S3
-    
-    Kinesis --> Firehose[Kinesis Firehose]
-    Firehose --> S3
-    
-    RDBMS --> RDS
-    NoSQL --> RDS
-    
-    Product --> Rules
-    Device --> Rules
+    Master --> RDS
     S3 --> ML
-    S3 --> Bedrock
-    S3 --> Forecast
-    
-    Rules --> ProductRules
-    ProductRules -.->|룰셋 로드| RDSRules[(RDS<br/>제품별<br/>룰셋)]
-    RDSRules -.->|룰셋 관리| ProductRules
-    
     Rules --> EventBridge
     ML --> EventBridge
-    Bedrock --> EventBridge
-    Forecast --> EventBridge
     
-    EventBridge --> Lambda2
-    Lambda2 --> Shadow
-    Lambda2 --> OTA
+    EventBridge --> Lambda
+    Lambda --> Shadow
+    Lambda --> OTA
     
     Rules --> CloudWatch
-    Lambda2 --> CloudWatch
+    Lambda --> CloudWatch
     CloudWatch --> SNS
     SNS --> Dashboard
     
-    Product --> DynamoDB
+    Classify --> DynamoDB
     S3 --> S3Archive
-    
-    Lambda1 --> Aggregate[집계 처리]
-    Aggregate --> RDS
+    Lambda --> RDS
     
     Shadow --> IoT
     OTA --> IoT
     
-    RDS -.->|기초 정보 참조| Lambda1
-    RDS -.->|기초 정보 참조| Rules
-    RDS -.->|기초 정보 조인| S3Archive
-    RDS -.->|제품별 룰셋| Rules
+    RDS -.->|참조| Convert
+    RDS -.->|참조| Rules
     
-    style S3 fill:#e1f5ff
-    style Rules fill:#fff4e1
-    style EventBridge fill:#e8f5e9
-    style Shadow fill:#f3e5f5
+    style Legacy fill:#2196F3,color:#fff
+    style VPNGateway fill:#FF9800,color:#fff
+    style VPCNetwork fill:#FF9800,color:#fff
+    style IoT fill:#2196F3,color:#fff
+    style Master fill:#FFC107,color:#000
+    style TCPGW fill:#FF9800,color:#fff
+    style APIGW fill:#FF9800,color:#fff
+    style MQTTGW fill:#FF9800,color:#fff
+    style TCPAdp fill:#9C27B0,color:#fff
+    style MQTTAdp fill:#9C27B0,color:#fff
+    style APIAdp fill:#9C27B0,color:#fff
+    style Kinesis fill:#4CAF50,color:#fff
+    style Convert fill:#9C27B0,color:#fff
+    style Classify fill:#FF9800,color:#fff
+    style S3 fill:#4CAF50,color:#fff
+    style Rules fill:#FF9800,color:#fff
+    style ML fill:#00BCD4,color:#fff
+    style EventBridge fill:#4CAF50,color:#fff
+    style Shadow fill:#4CAF50,color:#fff
+    style OTA fill:#4CAF50,color:#fff
+    style Lambda fill:#9C27B0,color:#fff
+    style CloudWatch fill:#FF9800,color:#fff
+    style SNS fill:#F44336,color:#fff
+    style Dashboard fill:#2196F3,color:#fff
+    style DynamoDB fill:#2196F3,color:#fff
+    style RDS fill:#FFC107,color:#000
+    style S3Archive fill:#00BCD4,color:#fff
 ```
 
 ---
@@ -1108,12 +1702,28 @@ flowchart TD
     WarmAggregate -->|3년 후| Archive2[아카이브]
     Archive2 --> Cold
     
-    style Hot fill:#ffebee
-    style WarmAggregate fill:#fff9c4
-    style MasterDB fill:#fff9c4
-    style Cold fill:#e0f2f1
-    style Delete fill:#e8eaf6
-    style Raw fill:#e1f5ff
+    style Ingest fill:#2196F3,color:#fff
+    style Raw fill:#4CAF50,color:#fff
+    style Process fill:#FF9800,color:#fff
+    style HotProcess fill:#2196F3,color:#fff
+    style BatchProcess fill:#9C27B0,color:#fff
+    style Standardized fill:#4CAF50,color:#fff
+    style Enrich fill:#9C27B0,color:#fff
+    style MasterDB fill:#FFC107,color:#000
+    style Curated fill:#4CAF50,color:#fff
+    style Tier fill:#FF9800,color:#fff
+    style Hot fill:#2196F3,color:#fff
+    style Cold fill:#00BCD4,color:#fff
+    style Archive1 fill:#9E9E9E,color:#fff
+    style Archive2 fill:#9E9E9E,color:#fff
+    style Delete fill:#9E9E9E,color:#fff
+    style Query1 fill:#2196F3,color:#fff
+    style Query2 fill:#FFC107,color:#000
+    style Query3 fill:#00BCD4,color:#fff
+    style MasterIngest fill:#FFC107,color:#000
+    style Keep fill:#FFC107,color:#000
+    style Aggregate fill:#4CAF50,color:#fff
+    style WarmAggregate fill:#FFC107,color:#000
 ```
 
 ---
@@ -1154,10 +1764,24 @@ flowchart TD
     
     Improve --> Customer
     
-    style SLA fill:#e3f2fd
-    style Compare fill:#fff9c4
-    style Escalate1 fill:#ffebee
-    style Dashboard fill:#e8f5e9
+    style Customer fill:#2196F3,color:#fff
+    style SLA fill:#FFC107,color:#000
+    style Policy fill:#FF9800,color:#fff
+    style Threshold1 fill:#FF9800,color:#fff
+    style Schedule1 fill:#FF9800,color:#fff
+    style Alert1 fill:#F44336,color:#fff
+    style Monitor fill:#FF9800,color:#fff
+    style Analyze fill:#00BCD4,color:#fff
+    style Compare fill:#FFC107,color:#000
+    style Report1 fill:#2196F3,color:#fff
+    style Escalate1 fill:#F44336,color:#fff
+    style Action fill:#F44336,color:#fff
+    style Track fill:#2196F3,color:#fff
+    style Update fill:#4CAF50,color:#fff
+    style Dashboard fill:#2196F3,color:#fff
+    style Archive fill:#9E9E9E,color:#fff
+    style Trend fill:#00BCD4,color:#fff
+    style Improve fill:#00BCD4,color:#fff
 ```
 
 ---
@@ -1207,6 +1831,653 @@ flowchart TD
 - **자동화 대응**: 제품별 자동 대응 액션 및 알림 채널 관리
 - **지속적 개선**: 제품별 피드백 기반 룰셋 최적화
 
+### 핵심 운영 사이클: 무중단 서비스 지원
+- **데이터 수집**: 다중 프로토콜(TCP/MQTT/API)을 통한 실시간 데이터 수집 및 통합
+- **모니터링**: 제품별 룰셋 기반 실시간 모니터링 및 이상 감지
+- **알림 발생**: 제품별 심각도에 따른 알림 발송 및 대응 우선순위 결정
+- **제어/OTA 처리**: 자동 대응 가능 시 Shadow 제어 또는 OTA 업데이트로 원격 해결
+- **기사 출동 처리**: 자동 대응 불가능 시 서비스 기사 출동 또는 원격 기술 지원
+- **제품 개선**: 해결 데이터를 기초 데이터로 저장하여 제품 분석 및 개선에 활용
+- **무중단 서비스**: 자동 대응 우선 정책으로 기사 출동 최소화 및 빠른 대응
+- **피드백 루프**: 제품 개선 사항이 OTA를 통해 배포되어 동일 문제 재발 방지
+
+---
+
+## 11. 서비스 설치 및 배포 프로세스
+
+**목적**: 개발부터 프로덕션 배포까지 전체 CI/CD 파이프라인
+
+```mermaid
+flowchart TD
+    subgraph 개발["1. 개발 단계"]
+        Code[코드 개발<br/>Lambda/ECS/Infra]
+        YAML[YAML 설정 작성<br/>제품별 변환 규칙]
+        Test[로컬 테스트<br/>단위/통합 테스트]
+    end
+    
+    subgraph 버전관리["2. 버전 관리"]
+        Git[Git 저장소<br/>코드 커밋]
+        YAMLRepo[(YAML 저장소<br/>Git/S3<br/>버전 관리)]
+        Code --> Git
+        YAML --> YAMLRepo
+    end
+    
+    subgraph CI["3. CI 파이프라인"]
+        Trigger[Git Push<br/>트리거]
+        Build[빌드<br/>Lambda 패키지 생성<br/>YAML 포함]
+        UnitTest[단위 테스트<br/>자동 실행]
+        Lint[코드 검사<br/>Linter/Formatter]
+        
+        Trigger --> Build
+        Build --> UnitTest
+        UnitTest --> Lint
+    end
+    
+    subgraph 패키징["4. 패키징"]
+        Package[Lambda ZIP 패키지<br/>코드 + YAML + 의존성]
+        Artifact[Artifact 저장<br/>S3/ECR]
+        Lint --> Package
+        Package --> Artifact
+    end
+    
+    subgraph 스테이징["5. 스테이징 배포"]
+        StagingDeploy[스테이징 환경 배포<br/>Lambda/ECS/Infra]
+        StagingTest[스테이징 테스트<br/>통합 테스트]
+        Artifact --> StagingDeploy
+        StagingDeploy --> StagingTest
+    end
+    
+    subgraph 프로덕션["6. 프로덕션 배포"]
+        Approval{배포 승인<br/>수동 검토}
+        ProdDeploy[프로덕션 배포<br/>Blue-Green/Canary]
+        Monitor[배포 모니터링<br/>CloudWatch]
+        Rollback{롤백<br/>필요?}
+        
+        StagingTest --> Approval
+        Approval -->|승인| ProdDeploy
+        ProdDeploy --> Monitor
+        Monitor --> Rollback
+        Rollback -->|Yes| ProdDeploy
+        Rollback -->|No| Complete[배포 완료]
+    end
+    
+    subgraph 인프라["7. 인프라 배포 (Terraform)"]
+        Terraform[Terraform<br/>인프라 코드]
+        Plan[Plan 실행<br/>변경사항 확인]
+        Apply[Apply 실행<br/>리소스 생성/업데이트]
+        Validate[검증<br/>리소스 상태 확인]
+        
+        Terraform --> Plan
+        Plan --> Apply
+        Apply --> Validate
+    end
+    
+    Git --> Trigger
+    YAMLRepo --> Build
+    Validate --> StagingDeploy
+    
+    style Code fill:#2196F3,color:#fff
+    style YAML fill:#FFC107,color:#000
+    style Test fill:#4CAF50,color:#fff
+    style Git fill:#2196F3,color:#fff
+    style YAMLRepo fill:#607D8B,color:#fff
+    style Trigger fill:#FF9800,color:#fff
+    style Build fill:#9C27B0,color:#fff
+    style UnitTest fill:#4CAF50,color:#fff
+    style Lint fill:#FF9800,color:#fff
+    style Package fill:#9C27B0,color:#fff
+    style Artifact fill:#4CAF50,color:#fff
+    style StagingDeploy fill:#FF9800,color:#fff
+    style StagingTest fill:#4CAF50,color:#fff
+    style Approval fill:#FF9800,color:#fff
+    style ProdDeploy fill:#4CAF50,color:#fff
+    style Monitor fill:#FF9800,color:#fff
+    style Rollback fill:#F44336,color:#fff
+    style Complete fill:#4CAF50,color:#fff
+    style Terraform fill:#9C27B0,color:#fff
+    style Plan fill:#FF9800,color:#fff
+    style Apply fill:#4CAF50,color:#fff
+    style Validate fill:#4CAF50,color:#fff
+```
+
+### 배포 전략
+
+- **Lambda 배포**: ZIP 패키지에 YAML 포함, 버전별 별도 배포
+- **ECS 배포**: ECR 이미지 기반, Blue-Green 또는 Rolling 배포
+- **인프라 배포**: Terraform을 통한 Infrastructure as Code
+- **롤백 전략**: 이전 버전 자동 롤백 지원
+
+---
+
+## 12. 기존 시스템 연동 프로세스
+
+**목적**: 온프레미스/하이브리드 환경의 기존 시스템과 AWS 연동
+
+```mermaid
+flowchart TD
+    subgraph 기존시스템["기존 시스템 (온프레미스/하이브리드)"]
+        LegacyRDBMS[기존 RDBMS<br/>PostgreSQL/MySQL/Oracle]
+        LegacyNoSQL[기존 NoSQL<br/>MongoDB/Redis]
+        LegacyAPI[기존 API 서버<br/>REST/SOAP]
+        LegacySensor[기존 센서 시스템<br/>TCP/MQTT]
+    end
+    
+    subgraph 네트워크["네트워크 구성"]
+        OnPremNetwork[온프레미스 네트워크<br/>사설 IP 대역]
+        VPNGateway[AWS VPN Gateway<br/>Site-to-Site VPN<br/>IPSec 터널]
+        VPCNetwork[VPC 내부 네트워크<br/>Private Subnet<br/>보안 그룹]
+        CustomerGateway[Customer Gateway<br/>온프레미스 라우터]
+    end
+    
+    subgraph 설정["VPN 터널 설정"]
+        VPNConfig[VPN 연결 설정<br/>BGP 라우팅<br/>암호화 키]
+        RouteTable[라우팅 테이블<br/>온프레미스 ↔ AWS]
+        SecurityGroup[보안 그룹<br/>포트/프로토콜 제한]
+    end
+    
+    subgraph 연동["연동 프로세스"]
+        Sync[데이터 동기화<br/>CDC/배치]
+        Transform[데이터 변환<br/>스키마 매핑]
+        Validate[검증<br/>데이터 품질 확인]
+    end
+    
+    subgraph AWS["AWS 서비스"]
+        RDS[RDS PostgreSQL<br/>기초 정보]
+        Kinesis[Kinesis Data Streams<br/>실시간 데이터]
+        S3[S3 Data Lake<br/>원시 데이터]
+    end
+    
+    LegacyRDBMS -->|VPN 터널링| CustomerGateway
+    LegacyNoSQL -->|VPN 터널링| CustomerGateway
+    LegacyAPI -->|VPN 터널링| CustomerGateway
+    LegacySensor -->|VPN 터널링| CustomerGateway
+    
+    CustomerGateway -->|IPSec 터널| VPNGateway
+    VPNGateway --> VPCNetwork
+    OnPremNetwork --> CustomerGateway
+    
+    VPNConfig --> VPNGateway
+    VPNConfig --> CustomerGateway
+    RouteTable --> VPNGateway
+    SecurityGroup --> VPCNetwork
+    
+    LegacyRDBMS -->|CDC/배치| Sync
+    LegacyNoSQL -->|CDC/배치| Sync
+    LegacyAPI -->|API 호출| Sync
+    LegacySensor -->|TCP/MQTT| Sync
+    
+    Sync --> Transform
+    Transform --> Validate
+    Validate -->|성공| RDS
+    Validate -->|성공| Kinesis
+    Validate -->|성공| S3
+    Validate -->|실패| Error[오류 처리<br/>재시도/알림]
+    
+    VPCNetwork --> RDS
+    VPCNetwork --> Kinesis
+    VPCNetwork --> S3
+    
+    style LegacyRDBMS fill:#2196F3,color:#fff
+    style LegacyNoSQL fill:#2196F3,color:#fff
+    style LegacyAPI fill:#2196F3,color:#fff
+    style LegacySensor fill:#2196F3,color:#fff
+    style OnPremNetwork fill:#2196F3,color:#fff
+    style VPNGateway fill:#FF9800,color:#fff
+    style VPCNetwork fill:#FF9800,color:#fff
+    style CustomerGateway fill:#FF9800,color:#fff
+    style VPNConfig fill:#FF9800,color:#fff
+    style RouteTable fill:#FF9800,color:#fff
+    style SecurityGroup fill:#FF9800,color:#fff
+    style Sync fill:#9C27B0,color:#fff
+    style Transform fill:#9C27B0,color:#fff
+    style Validate fill:#FF9800,color:#fff
+    style RDS fill:#FFC107,color:#000
+    style Kinesis fill:#4CAF50,color:#fff
+    style S3 fill:#4CAF50,color:#fff
+    style Error fill:#F44336,color:#fff
+```
+
+### VPN 터널링 구성 요소
+
+- **AWS VPN Gateway**: Site-to-Site VPN 엔드포인트
+- **Customer Gateway**: 온프레미스 라우터/방화벽
+- **VPN 연결**: IPSec 터널 (2개 터널로 고가용성)
+- **BGP 라우팅**: 동적 라우팅 프로토콜
+- **보안 그룹**: VPC 내부 리소스 접근 제어
+
+---
+
+## 13. 구축 필요 리소스 및 시스템 구성
+
+**목적**: 전체 시스템 구축에 필요한 AWS 리소스 및 인프라 구성 정리
+
+### 13-1. 네트워크 및 보안 리소스
+
+```mermaid
+flowchart TD
+    subgraph 네트워크["네트워크 계층"]
+        VPC[VPC<br/>사설 네트워크]
+        PublicSubnet[Public Subnet<br/>인터넷 게이트웨이]
+        PrivateSubnet[Private Subnet<br/>내부 리소스]
+        NATGateway[NAT Gateway<br/>아웃바운드 인터넷]
+    end
+    
+    subgraph VPN["VPN 터널링"]
+        VPNGateway[VPN Gateway<br/>Site-to-Site VPN]
+        CustomerGW[Customer Gateway<br/>온프레미스]
+        VPNConnection[VPN 연결<br/>IPSec 터널 x2]
+    end
+    
+    subgraph 보안["보안"]
+        SecurityGroup[보안 그룹<br/>포트/프로토콜 제어]
+        NACL[Network ACL<br/>서브넷 레벨 제어]
+        IAM[IAM 역할/정책<br/>리소스 접근 제어]
+    end
+    
+    VPC --> PublicSubnet
+    VPC --> PrivateSubnet
+    PublicSubnet --> NATGateway
+    PrivateSubnet --> NATGateway
+    
+    VPNGateway --> VPNConnection
+    CustomerGW --> VPNConnection
+    VPNConnection --> VPC
+    
+    SecurityGroup --> VPC
+    NACL --> VPC
+    IAM --> VPC
+    
+    style VPC fill:#2196F3,color:#fff
+    style PublicSubnet fill:#2196F3,color:#fff
+    style PrivateSubnet fill:#2196F3,color:#fff
+    style NATGateway fill:#FF9800,color:#fff
+    style VPNGateway fill:#FF9800,color:#fff
+    style CustomerGW fill:#FF9800,color:#fff
+    style VPNConnection fill:#FF9800,color:#fff
+    style SecurityGroup fill:#F44336,color:#fff
+    style NACL fill:#F44336,color:#fff
+    style IAM fill:#F44336,color:#fff
+```
+
+### 13-2. 데이터 수집 및 게이트웨이 리소스
+
+```mermaid
+flowchart TD
+    subgraph 게이트웨이["게이트웨이 계층"]
+        ECSGateway[ECS 서비스<br/>TCP 게이트웨이<br/>Fargate/EC2]
+        APIGateway[API Gateway<br/>REST API 엔드포인트]
+        IoTCore[IoT Core<br/>MQTT 브로커]
+        LoadBalancer[Network Load Balancer<br/>TCP 로드 밸런싱]
+    end
+    
+    subgraph 어댑터["프로토콜 어댑터"]
+        ECSAdapter[ECS 서비스<br/>TCP 어댑터<br/>Kinesis Producer SDK]
+        LambdaAdapter[Lambda Function<br/>API 어댑터<br/>Kinesis Producer SDK]
+        IoTRule[IoT Core Rule<br/>MQTT → Kinesis]
+    end
+    
+    subgraph 스트림["스트림 계층"]
+        Kinesis[Kinesis Data Streams<br/>실시간 데이터 스트림]
+        Firehose[Kinesis Data Firehose<br/>배치 저장]
+    end
+    
+    ECSGateway --> LoadBalancer
+    LoadBalancer --> ECSAdapter
+    APIGateway --> LambdaAdapter
+    IoTCore --> IoTRule
+    
+    ECSAdapter --> Kinesis
+    LambdaAdapter --> Kinesis
+    IoTRule --> Kinesis
+    
+    Kinesis --> Firehose
+    
+    style ECSGateway fill:#FF9800,color:#fff
+    style APIGateway fill:#FF9800,color:#fff
+    style IoTCore fill:#FF9800,color:#fff
+    style LoadBalancer fill:#FF9800,color:#fff
+    style ECSAdapter fill:#9C27B0,color:#fff
+    style LambdaAdapter fill:#9C27B0,color:#fff
+    style IoTRule fill:#9C27B0,color:#fff
+    style Kinesis fill:#4CAF50,color:#fff
+    style Firehose fill:#4CAF50,color:#fff
+```
+
+### 13-3. 데이터 처리 및 변환 리소스
+
+```mermaid
+flowchart TD
+    subgraph 변환["변환 계층"]
+        ConvertLambda[Lambda Function<br/>컨버트 모듈<br/>YAML 기반 변환]
+        ClassifyLambda[Lambda Function<br/>데이터 분류]
+        TransformLambda[Lambda Function<br/>표준화 변환]
+    end
+    
+    subgraph 큐["큐 및 DLQ"]
+        DLQ[SQS Dead Letter Queue<br/>실패 데이터 보관]
+        SQS[SQS Queue<br/>비동기 처리]
+    end
+    
+    subgraph 분석["분석 계층"]
+        KinesisAnalytics[Kinesis Analytics<br/>실시간 집계]
+        Glue[Glue ETL<br/>배치 처리]
+    end
+    
+    ConvertLambda -->|실패| DLQ
+    ConvertLambda -->|성공| ClassifyLambda
+    ClassifyLambda --> TransformLambda
+    TransformLambda --> SQS
+    
+    KinesisAnalytics -->|주기 집계| RDS
+    Glue -->|배치 ETL| S3
+    
+    style ConvertLambda fill:#9C27B0,color:#fff
+    style ClassifyLambda fill:#9C27B0,color:#fff
+    style TransformLambda fill:#9C27B0,color:#fff
+    style DLQ fill:#F44336,color:#fff
+    style SQS fill:#FF9800,color:#fff
+    style KinesisAnalytics fill:#4CAF50,color:#fff
+    style Glue fill:#9C27B0,color:#fff
+```
+
+### 13-4. 데이터 저장소 리소스
+
+```mermaid
+flowchart TD
+    subgraph Hot["Hot 데이터"]
+        DynamoDB[(DynamoDB<br/>실시간 데이터<br/>제품별/디바이스별)]
+        OpenSearch[OpenSearch<br/>실시간 검색/분석]
+    end
+    
+    subgraph Warm["Warm 데이터"]
+        RDS[(RDS PostgreSQL<br/>기초 정보<br/>집계 결과<br/>제품별 룰셋)]
+    end
+    
+    subgraph Cold["Cold 데이터"]
+        S3Raw[(S3 Raw Layer<br/>원시 페이로드)]
+        S3Standardized[(S3 Standardized<br/>표준화 데이터)]
+        S3Curated[(S3 Curated<br/>가공 데이터)]
+        S3Iceberg[(S3 + Iceberg<br/>Cold 데이터<br/>테이블 형식)]
+    end
+    
+    subgraph 쿼리["쿼리 엔진"]
+        Athena[Athena<br/>SQL 쿼리<br/>Iceberg 테이블]
+        GlueCatalog[Glue Catalog<br/>메타데이터 관리]
+    end
+    
+    S3Curated --> S3Iceberg
+    S3Iceberg --> Athena
+    GlueCatalog --> Athena
+    
+    style DynamoDB fill:#2196F3,color:#fff
+    style OpenSearch fill:#2196F3,color:#fff
+    style RDS fill:#FFC107,color:#000
+    style S3Raw fill:#4CAF50,color:#fff
+    style S3Standardized fill:#4CAF50,color:#fff
+    style S3Curated fill:#4CAF50,color:#fff
+    style S3Iceberg fill:#00BCD4,color:#fff
+    style Athena fill:#00BCD4,color:#fff
+    style GlueCatalog fill:#9C27B0,color:#fff
+```
+
+### 13-5. 분석 및 AI/ML 리소스
+
+```mermaid
+flowchart TD
+    subgraph 룰엔진["룰 엔진"]
+        RulesEngine[Lambda Function<br/>룰 엔진<br/>제품별 룰셋]
+        RDSRules[(RDS<br/>제품별 룰셋<br/>설정)]
+    end
+    
+    subgraph ML["ML/AI 서비스"]
+        SageMaker[SageMaker<br/>ML 모델<br/>제품별 학습]
+        Bedrock[Bedrock<br/>LLM 분석<br/>RCA/예측]
+        Forecast[Forecast<br/>예측 분석]
+    end
+    
+    subgraph 오케스트레이션["오케스트레이션"]
+        EventBridge[EventBridge<br/>이벤트 오케스트레이션]
+        StepFunctions[Step Functions<br/>복잡한 워크플로우]
+    end
+    
+    RulesEngine --> RDSRules
+    RDSRules -.->|룰셋 로드| RulesEngine
+    
+    SageMaker --> EventBridge
+    Bedrock --> EventBridge
+    Forecast --> EventBridge
+    
+    EventBridge --> StepFunctions
+    
+    style RulesEngine fill:#FF9800,color:#fff
+    style RDSRules fill:#FFC107,color:#000
+    style SageMaker fill:#00BCD4,color:#fff
+    style Bedrock fill:#00BCD4,color:#fff
+    style Forecast fill:#00BCD4,color:#fff
+    style EventBridge fill:#4CAF50,color:#fff
+    style StepFunctions fill:#4CAF50,color:#fff
+```
+
+### 13-6. 제어 및 모니터링 리소스
+
+```mermaid
+flowchart TD
+    subgraph 제어["제어 계층"]
+        IoTShadow[IoT Device Shadow<br/>디바이스 상태 관리]
+        OTAService[OTA Service<br/>펌웨어 업데이트]
+        ControlLambda[Lambda Function<br/>자동 제어]
+    end
+    
+    subgraph 모니터링["모니터링"]
+        CloudWatch[CloudWatch<br/>메트릭/로그/알람]
+        SNS[SNS<br/>알림 발송]
+        Dashboard[QuickSight/커스텀<br/>대시보드]
+    end
+    
+    subgraph 스케줄링["스케줄링"]
+        EventBridgeSchedule[EventBridge<br/>스케줄러<br/>크론 표현식]
+    end
+    
+    ControlLambda --> IoTShadow
+    ControlLambda --> OTAService
+    IoTShadow --> IoTDevice[IoT 디바이스]
+    OTAService --> IoTDevice
+    
+    CloudWatch --> SNS
+    SNS --> Dashboard
+    EventBridgeSchedule --> ControlLambda
+    
+    style IoTShadow fill:#4CAF50,color:#fff
+    style OTAService fill:#4CAF50,color:#fff
+    style ControlLambda fill:#9C27B0,color:#fff
+    style CloudWatch fill:#FF9800,color:#fff
+    style SNS fill:#F44336,color:#fff
+    style Dashboard fill:#2196F3,color:#fff
+    style EventBridgeSchedule fill:#FF9800,color:#fff
+    style IoTDevice fill:#2196F3,color:#fff
+```
+
+### 13-7. 전체 리소스 목록
+
+#### 네트워크 및 보안
+- **VPC**: 사설 네트워크 (CIDR 블록)
+- **Subnet**: Public/Private 서브넷 (가용 영역별)
+- **Internet Gateway**: 퍼블릭 인터넷 접근
+- **NAT Gateway**: 프라이빗 서브넷 아웃바운드
+- **VPN Gateway**: Site-to-Site VPN
+- **Customer Gateway**: 온프레미스 라우터
+- **VPN Connection**: IPSec 터널 (2개, 고가용성)
+- **Security Group**: 인스턴스 레벨 방화벽
+- **Network ACL**: 서브넷 레벨 방화벽
+- **Route Table**: 라우팅 테이블
+
+#### 게이트웨이 및 어댑터
+- **ECS Service**: TCP 게이트웨이 (Fargate/EC2)
+- **Network Load Balancer**: TCP 로드 밸런싱
+- **API Gateway**: REST API 엔드포인트
+- **IoT Core**: MQTT 브로커
+- **ECS Task Definition**: 컨테이너 정의
+- **ECR**: 컨테이너 이미지 저장소
+
+#### 데이터 스트림
+- **Kinesis Data Streams**: 실시간 데이터 스트림
+- **Kinesis Data Firehose**: 배치 저장
+- **Kinesis Analytics**: 실시간 집계
+
+#### Lambda 함수
+- **컨버트 모듈**: YAML 기반 데이터 변환
+- **데이터 분류**: 제품별/고객별/디바이스별 분류
+- **표준화 변환**: 스키마 변환 및 보강
+- **룰 엔진**: 제품별 알람 룰셋 적용
+- **자동 제어**: Shadow/OTA 제어
+- **DLQ 처리**: 실패 데이터 재처리
+- **배치 처리**: 파일 데이터 처리
+
+#### 데이터 저장소
+- **DynamoDB**: Hot 데이터 (실시간)
+- **RDS PostgreSQL**: Warm 데이터 (기초 정보, 집계 결과)
+- **S3**: Raw/Standardized/Curated Layer
+- **S3 + Iceberg**: Cold 데이터 (장기 보관)
+- **OpenSearch**: 실시간 검색/분석
+
+#### 분석 및 AI/ML
+- **SageMaker**: ML 모델 학습 및 추론
+- **Bedrock**: LLM 기반 분석
+- **Forecast**: 예측 분석
+- **Athena**: SQL 쿼리 (Iceberg 테이블)
+- **Glue**: ETL 처리 및 카탈로그 관리
+
+#### 오케스트레이션
+- **EventBridge**: 이벤트 오케스트레이션 및 스케줄링
+- **Step Functions**: 복잡한 워크플로우
+
+#### 모니터링 및 알림
+- **CloudWatch**: 메트릭, 로그, 알람
+- **SNS**: 알림 발송
+- **QuickSight**: 대시보드 (또는 커스텀)
+
+#### 큐 및 메시징
+- **SQS**: Dead Letter Queue 및 비동기 처리
+
+#### 기타
+- **IAM**: 역할 및 정책
+- **Secrets Manager**: 시크릿 관리
+- **Parameter Store**: 설정 관리
+- **CodePipeline**: CI/CD 파이프라인
+- **CodeBuild**: 빌드 서비스
+- **CodeDeploy**: 배포 서비스
+
+---
+
+---
+
+## 14. 설계 문서와 웹 애플리케이션 매핑
+
+**목적**: 설계 문서의 내용이 대시보드와 프레젠테이션에 어떻게 반영되는지 매핑
+
+### 14-1. 설계 문서 → 대시보드 매핑
+
+```mermaid
+flowchart TD
+    subgraph 설계문서["설계 문서 (PROCESS_FLOW.md)"]
+        D1[1. 전체 로드맵]
+        D2[2. 데이터 통합 플랫폼]
+        D3[3. 지능형 모니터링]
+        D4[4. 원격 제어]
+        D5[5. OTA 업데이트]
+        D6[6. 자동 진단]
+        D8[8. 시스템 아키텍처]
+        D9[9. 데이터 생명주기]
+        D10[10. 고객별 서비스]
+        D11[11. 설치/배포]
+        D12[12. 기존 시스템 연동]
+        D13[13. 구축 리소스]
+    end
+    
+    subgraph 대시보드["대시보드 (DashboardApp)"]
+        DB1[Frame 1. 문제 정의<br/>ProblemFrame]
+        DB2[Frame 2. 표준화<br/>SchemaFrame]
+        DB3[Frame 3. 통합 플랫폼<br/>DataIntegrationFrame]
+        DB4[Frame 4. 모니터링<br/>MonitoringFrame]
+        DB5[Frame 5. 자동 제어<br/>RemoteControlFrame]
+        DB6[Frame 6. 지능형 분석<br/>AnalysisFrame]
+        DB7[Frame 7. 활용 확장<br/>FutureFrame]
+    end
+    
+    D2 --> DB3
+    D3 --> DB4
+    D4 --> DB5
+    D5 --> DB5
+    D6 --> DB6
+    D8 --> DB3
+    D9 --> DB3
+    D10 --> DB7
+    D11 --> DB7
+    D12 --> DB3
+    D13 --> DB7
+    
+    style 설계문서 fill:#2196F3,color:#fff
+    style 대시보드 fill:#4CAF50,color:#fff
+```
+
+### 14-2. 설계 문서 → 프레젠테이션 매핑
+
+```mermaid
+flowchart TD
+    subgraph 설계문서["설계 문서 (PROCESS_FLOW.md)"]
+        D1[1. 전체 로드맵]
+        D2[2. 데이터 통합]
+        D3[3. 모니터링]
+        D6[6. 자동 진단]
+        D8[8. 시스템 아키텍처]
+        D10[10. 고객별 서비스]
+    end
+    
+    subgraph 프레젠테이션["프레젠테이션 (PresentationApp)"]
+        P1[제목 슬라이드]
+        P2[현재 문제점<br/>ProblemSlide]
+        P3[솔루션 개요<br/>SolutionSlide]
+        P4[시스템 아키텍처<br/>ArchitectureSlide]
+        P5[핵심 기능<br/>BenefitsSlide]
+        P6[구현 로드맵<br/>RoadmapSlide]
+        P7[ROI<br/>ROISlide]
+    end
+    
+    D1 --> P6
+    D2 --> P3
+    D2 --> P4
+    D3 --> P5
+    D6 --> P5
+    D8 --> P4
+    D10 --> P7
+    
+    style 설계문서 fill:#2196F3,color:#fff
+    style 프레젠테이션 fill:#FF9800,color:#fff
+```
+
+### 14-3. 설계 문서 구성 요소 매핑 테이블
+
+| 설계 문서 섹션 | 내용 | 대시보드 매핑 | 프레젠테이션 매핑 |
+|--------------|------|---------------|----------------|
+| 1. 전체 로드맵 | 6단계 구현 계획 | FutureFrame | RoadmapSlide |
+| 2. 데이터 통합 플랫폼 | 전체 데이터 흐름 | DataIntegrationFrame | SolutionSlide, ArchitectureSlide |
+| 2-1. 실시간 데이터 수집 | 프로토콜별 상세 | DataIntegrationFrame | ArchitectureSlide |
+| 2-2. 파일 배치 처리 | 배치 Job 프로세스 | DataIntegrationFrame | - |
+| 3. 지능형 모니터링 | 제품별 룰셋 적용 | MonitoringFrame | BenefitsSlide |
+| 4. 원격 제어 | Shadow 기반 제어 | RemoteControlFrame | BenefitsSlide |
+| 5. OTA 업데이트 | 펌웨어 업데이트 | RemoteControlFrame | BenefitsSlide |
+| 6. 자동 진단 및 대응 | 폐쇄 루프 | AnalysisFrame | BenefitsSlide |
+| 6-1. 핵심 운영 사이클 | 무중단 서비스 지원 | MonitoringFrame, RemoteControlFrame | BenefitsSlide |
+| 7. 통신 오류 배치 체크 | 주기적 점검 | MonitoringFrame | - |
+| 8. 전체 시스템 아키텍처 | 계층별 구성 | DataIntegrationFrame | ArchitectureSlide |
+| 9. 데이터 생명주기 | Hot/Warm/Cold 관리 | DataIntegrationFrame | SolutionSlide |
+| 10. 고객별 맞춤 서비스 | SLA 기반 서비스 | FutureFrame | ROISlide |
+| 11. 설치 및 배포 | CI/CD 파이프라인 | FutureFrame | - |
+| 12. 기존 시스템 연동 | VPN 터널링 | DataIntegrationFrame | ArchitectureSlide |
+| 13. 구축 필요 리소스 | AWS 리소스 목록 | FutureFrame | - |
+
+---
+
 ## 사용 방법
 
 이 문서의 Mermaid 다이어그램은 다음 도구에서 확인할 수 있습니다:
@@ -1215,6 +2486,68 @@ flowchart TD
 2. **VS Code**: Mermaid Preview 확장 프로그램 설치
 3. **온라인 에디터**: [Mermaid Live Editor](https://mermaid.live/)
 4. **Notion, Confluence**: Mermaid 플러그인 사용
+
+### Vite + React 웹 애플리케이션 실행
+
+```bash
+# 프로젝트 디렉토리로 이동
+cd 10.planning
+
+# 의존성 설치
+npm install
+
+# 개발 서버 실행
+npm run dev
+```
+
+**모드별 URL 해시**:
+- **프레젠테이션 모드**: `http://localhost:3000/#presentation` 또는 `http://localhost:3000/#presentation/{slide-id}`
+- **대시보드 모드**: `http://localhost:3000/#dashboard` 또는 `http://localhost:3000/#dashboard/{frame-id}`
+- **설계 문서 모드**: `http://localhost:3000/#docs` 또는 `http://localhost:3000/#docs/{doc-id}/{section-id}`
+
+### Vite + React 프로젝트 구조 상세
+
+```mermaid
+flowchart TD
+    subgraph ViteApp["Vite + React 프로젝트 (10.planning/)"]
+        Src[src/ 디렉토리<br/>소스 코드]
+        Public[public/ 디렉토리<br/>정적 파일]
+        Docs[00.doc/ 디렉토리<br/>설계 문서]
+    end
+    
+    subgraph Apps["애플리케이션 (src/apps/)"]
+        App[App.tsx<br/>메인 앱<br/>모드 전환]
+        Dashboard[DashboardApp.tsx<br/>대시보드 모드]
+        Presentation[PresentationApp.tsx<br/>프레젠테이션 모드]
+        DocsApp[DocsApp.tsx<br/>설계 문서 모드]
+    end
+    
+    subgraph Components["컴포넌트"]
+        DashboardFrames[src/components/<br/>Frame 컴포넌트<br/>ProblemFrame, SchemaFrame 등]
+        PresentationSlides[src/apps/presentation/slides/<br/>Slide 컴포넌트<br/>ProblemSlide, SolutionSlide 등]
+        UIComps[src/components/ui/<br/>공통 UI 컴포넌트]
+        MermaidDiagram[DocsApp 내부<br/>MermaidDiagram<br/>다이어그램 뷰어]
+    end
+    
+    App --> Dashboard
+    App --> Presentation
+    App --> DocsApp
+    
+    Dashboard --> DashboardFrames
+    Presentation --> PresentationSlides
+    DocsApp --> MermaidDiagram
+    
+    DashboardFrames --> UIComps
+    PresentationSlides --> UIComps
+    MermaidDiagram --> UIComps
+    
+    DocsApp --> Docs
+    
+    style ViteApp fill:#4CAF50,color:#fff
+    style Apps fill:#2196F3,color:#fff
+    style Components fill:#FF9800,color:#fff
+    style Docs fill:#9C27B0,color:#fff
+```
 
 ---
 

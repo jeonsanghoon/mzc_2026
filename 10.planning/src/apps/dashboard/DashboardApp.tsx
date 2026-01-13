@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -16,6 +16,8 @@ import {
   TrendingUp,
   Target,
   CheckCircle2,
+  Brain,
+  Rocket,
 } from "lucide-react";
 
 import { ProblemFrame } from "../../components/ProblemFrame";
@@ -27,16 +29,6 @@ import { AnalysisFrame } from "../../components/AnalysisFrame";
 import { FutureFrame } from "../../components/FutureFrame";
 
 export function DashboardApp() {
-  const [activeFrame, setActiveFrame] = useState<
-    | "problem"
-    | "schema"
-    | "integration"
-    | "monitoring"
-    | "control"
-    | "analysis"
-    | "future"
-  >("problem");
-
   const frames = [
     {
       id: "problem",
@@ -66,21 +58,67 @@ export function DashboardApp() {
       id: "control",
       title: "Frame 5. 데이터 기반 자동 제어",
       icon: Settings,
-      color: "text-green-500",
+      color: "text-purple-500",
     },
     {
       id: "analysis",
       title: "Frame 6. 지능형 데이터 분석",
-      icon: TrendingUp,
-      color: "text-purple-500",
+      icon: Brain,
+      color: "text-indigo-500",
     },
     {
       id: "future",
       title: "Frame 7. 데이터 활용 확장",
-      icon: Target,
-      color: "text-indigo-500",
+      icon: Rocket,
+      color: "text-green-500",
     },
-  ] as const;
+  ];
+
+  const [activeFrame, setActiveFrame] = useState<
+    | "problem"
+    | "schema"
+    | "integration"
+    | "monitoring"
+    | "control"
+    | "analysis"
+    | "future"
+  >(() => {
+    // 초기 상태 설정 시 해시 확인
+    const hash = window.location.hash.slice(1);
+    if (hash.startsWith("dashboard/")) {
+      const frameId = hash.replace("dashboard/", "");
+      const frame = frames.find(f => f.id === frameId);
+      return frame ? (frameId as typeof activeFrame) : "problem";
+    }
+    return "problem";
+  });
+
+  // 해시로 프레임 감지 및 업데이트
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1);
+      
+      if (hash.startsWith("dashboard/")) {
+        const frameId = hash.replace("dashboard/", "");
+        const frame = frames.find(f => f.id === frameId);
+        if (frame && frameId !== activeFrame) {
+          setActiveFrame(frameId as typeof activeFrame);
+        }
+      } else if (hash === "dashboard") {
+        if (activeFrame !== "problem") {
+          setActiveFrame("problem");
+          window.location.hash = "#dashboard/problem";
+        }
+      }
+    };
+
+    // 초기 로드
+    handleHashChange();
+    
+    // 해시 변경 이벤트 리스너
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [frames, activeFrame]);
 
   const renderFrameContent = () => {
     switch (activeFrame) {
@@ -118,7 +156,7 @@ export function DashboardApp() {
         </header>
 
         {/* Key Features Overview */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-10 auto-rows-fr">
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6 mb-4 sm:mb-10 auto-rows-fr">
           {/* Card 1 */}
           <Card className="h-full">
             <CardHeader className="items-center text-center pb-2 sm:pb-3 p-3 sm:p-6">
@@ -265,7 +303,7 @@ export function DashboardApp() {
           </Card>
         </section>
 
-        {/* Frame Navigation */}
+        {/* Frame Navigation - 좌우 레이아웃 */}
         <section>
           <Card>
             <CardHeader className="pb-2 sm:pb-4 text-center p-3 sm:p-6">
@@ -278,47 +316,55 @@ export function DashboardApp() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
-              {/* ✅ 모바일 정렬 깨짐 방지: grid + 고정 폭/높이 */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2 md:gap-3 mb-4 sm:mb-6">
-                {frames.map((frame) => {
-                  const Icon = frame.icon;
-                  const isActive = activeFrame === frame.id;
-                  return (
-                    <button
-                      key={frame.id}
-                      type="button"
-                      onClick={() =>
-                        setActiveFrame(frame.id as any)
-                      }
-                      aria-pressed={isActive}
-                      aria-current={
-                        isActive ? "page" : undefined
-                      }
-                      className={[
-                        "w-full min-h-[48px] sm:min-h-[56px]",
-                        "inline-flex flex-col items-center justify-center",
-                        "rounded-lg sm:rounded-xl px-2 py-2 sm:px-4 sm:py-3 text-xs md:text-sm",
-                        "border transition-all duration-200",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200",
-                        "active:translate-y-[1px]",
-                        isActive
-                          ? "bg-blue-50 text-blue-800 border-blue-300 ring-2 ring-blue-200 shadow-sm"
-                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50",
-                      ].join(" ")}
-                    >
-                      <Icon
-                        className={`h-3 w-3 sm:h-4 sm:w-4 mb-1 ${isActive ? "text-blue-700" : frame.color}`}
-                      />
-                      <span className="leading-tight text-center text-xs sm:text-sm">
-                        {frame.title}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              <div className="flex flex-col lg:flex-row gap-4">
+                {/* 왼쪽: 프레임 네비게이션 */}
+                <div className="lg:w-64 flex-shrink-0">
+                  <div className="flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0">
+                    {frames.map((frame) => {
+                      const Icon = frame.icon;
+                      const isActive = activeFrame === frame.id;
+                      return (
+                        <button
+                          key={frame.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveFrame(frame.id as any);
+                            window.location.hash = `#dashboard/${frame.id}`;
+                          }}
+                          aria-pressed={isActive}
+                          aria-current={
+                            isActive ? "page" : undefined
+                          }
+                          className={[
+                            "w-full min-w-[120px] lg:min-w-0",
+                            "inline-flex items-center gap-2 lg:gap-3",
+                            "rounded-lg px-3 py-2.5 text-sm",
+                            "border transition-all duration-200",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200",
+                            "active:translate-y-[1px]",
+                            isActive
+                              ? "bg-blue-50 text-blue-800 border-blue-300 ring-2 ring-blue-200 shadow-sm font-semibold"
+                              : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50",
+                          ].join(" ")}
+                        >
+                          <Icon
+                            className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-blue-700" : frame.color}`}
+                          />
+                          <span className="leading-tight text-left whitespace-nowrap lg:whitespace-normal">
+                            {frame.title}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-              <div className="border rounded-lg p-2 sm:p-4 lg:p-6 bg-white">
-                {renderFrameContent()}
+                {/* 오른쪽: 프레임 콘텐츠 */}
+                <div className="flex-1 min-w-0">
+                  <div className="border rounded-lg p-2 sm:p-4 lg:p-6 bg-white">
+                    {renderFrameContent()}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

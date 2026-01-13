@@ -54,7 +54,7 @@ import {
   Bar,
 } from "recharts";
 
-export function RealTimeMonitoring() {
+export function OTAManagement() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timeRange, setTimeRange] = useState("2h");
   const [deviceGroup, setDeviceGroup] = useState("all");

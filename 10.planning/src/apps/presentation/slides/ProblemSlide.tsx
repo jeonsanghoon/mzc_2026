@@ -1,41 +1,49 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
-import { AlertTriangle, TrendingDown, XCircle, Clock, DollarSign, Users } from 'lucide-react';
+import { AlertTriangle, TrendingDown, XCircle, Clock, Database, Users, Shield } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export function ProblemSlide() {
   const problems = [
     {
       icon: XCircle,
-      title: '데이터 분산 문제',
-      description: '7개 분산된 시스템으로 인한 통합 관리 불가',
-      impact: '알람 오탐률 30%',
-      color: 'text-red-400',
-      bgColor: 'bg-red-500/20'
+      title: '데이터 문제',
+      description: 'RDBMS/NoSQL/File/IoT 장비별로 분산되어 통합 불가, 표준 스키마/시간대/단위/ID 불일치로 분석 불신, 실시간은 일부만 필요하지만 무분별 수집으로 장애 및 비용 증가',
+      impact: '데이터 활용도 30%',
+      color: 'text-blue-400',
+      bgColor: 'bg-blue-500/20'
     },
     {
       icon: Clock,
-      title: '느린 장애 대응',
-      description: '수동적 모니터링으로 인한 지연된 문제 발견',
+      title: '운영 문제',
+      description: '알람 오탐/미탐으로 운영 혼란 및 대응 지연, 근본 원인 분석 지연으로 서비스 수준 협약 준수 실패, 통신 오류 누적 시 배치 점검 필요로 실시간 누락',
       impact: '평균 복구 시간 4시간',
       color: 'text-orange-400',
       bgColor: 'bg-orange-500/20'
     },
     {
-      icon: DollarSign,
-      title: '높은 운영 비용',
-      description: '현장 출동 과다 및 비효율적 유지보수',
-      impact: '운영비 40% 초과',
-      color: 'text-yellow-400',
-      bgColor: 'bg-yellow-500/20'
+      icon: AlertTriangle,
+      title: '제품 문제',
+      description: '제품/펌웨어별 성능 데이터 부족으로 불량 원인 규명 지연, 고객사별 맞춤 서비스 수준 협약 대응 불가로 만족도 및 재구매율 하락',
+      impact: '고객 만족도 지속 하락',
+      color: 'text-red-400',
+      bgColor: 'bg-red-500/20'
     },
     {
       icon: Users,
-      title: '제한적 확장성',
-      description: '수동 관리로 인한 스케일링 한계',
-      impact: '신규 고객 대응 어려움',
+      title: '서비스 문제',
+      description: '원격 제어 및 무선 펌웨어 업데이트 미흡으로 현장 출동 증가 및 운영비용 증가',
+      impact: '월 120건 현장 출동',
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/20'
+    },
+    {
+      icon: Shield,
+      title: '보안/비용 문제',
+      description: '권한 관리 및 감사 체계 미비로 규제 리스크, 불필요한 장기 DB 보관으로 비용 과다',
+      impact: '연간 2억원 운영비 초과',
+      color: 'text-green-400',
+      bgColor: 'bg-green-500/20'
     }
   ];
 
@@ -186,10 +194,10 @@ export function ProblemSlide() {
         className="text-center bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/40 rounded-lg p-3 sm:p-4 md:p-6"
       >
         <h4 className="text-base sm:text-lg md:text-xl text-white mb-2 px-2 font-bold break-words">
-          ⚠️ 연간 50억원 이상의 운영 손실 · 고객 만족도 지속 하락
+          이러한 문제들을 해결하기 위한 통합 솔루션이 필요합니다
         </h4>
         <p className="text-sm sm:text-base text-slate-100 px-2 font-medium break-words">
-          혁신적인 데이터 통합 솔루션으로 근본적 문제 해결 필요
+          데이터 통합 플랫폼을 통한 지능형 자동화가 해답입니다
         </p>
       </motion.div>
     </motion.div>

@@ -1,80 +1,122 @@
 import { useState, useEffect } from "react";
 import { Button } from "./components/ui/button";
 import { Badge } from "./components/ui/badge";
-import { Monitor, Presentation } from "lucide-react";
+import { Monitor, Presentation, FileText } from "lucide-react";
 
 import { DashboardApp } from "./apps/dashboard/DashboardApp";
 import { PresentationApp } from "./apps/presentation/PresentationApp";
+import { DocsApp } from "./apps/docs/DocsApp";
 
 export default function App() {
   const [mode, setMode] = useState<
-    "dashboard" | "presentation"
+    "dashboard" | "presentation" | "docs"
   >("presentation");
 
-  // URL 파라미터로 모드 감지
+  // 해시로 모드 감지 및 업데이트
   useEffect(() => {
-    const urlParams = new URLSearchParams(
-      window.location.search,
-    );
-    const urlMode = urlParams.get("mode");
-    if (urlMode === "presentation") {
-      setMode("presentation");
-    }
-  }, []);
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1); // # 제거
+      
+      if (hash.startsWith("presentation")) {
+        if (mode !== "presentation") {
+          setMode("presentation");
+        }
+      } else if (hash.startsWith("dashboard")) {
+        if (mode !== "dashboard") {
+          setMode("dashboard");
+        }
+      } else if (hash.startsWith("docs")) {
+        if (mode !== "docs") {
+          setMode("docs");
+        }
+      } else {
+        // 기본값: presentation
+        if (mode !== "presentation") {
+          setMode("presentation");
+        }
+        if (!hash) {
+          window.location.hash = "#presentation";
+        }
+      }
+    };
 
-  // URL 업데이트 없이 모드 전환
+    // 초기 로드
+    handleHashChange();
+    
+    // 해시 변경 이벤트 리스너
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [mode]);
+
+  // 모드 전환 시 해시 업데이트
   const toggleMode = (
-    newMode: "dashboard" | "presentation",
+    newMode: "dashboard" | "presentation" | "docs",
   ) => {
     setMode(newMode);
-    // URL 업데이트 (선택사항)
-    const url = new URL(window.location.href);
-    if (newMode === "presentation") {
-      url.searchParams.set("mode", "presentation");
-    } else {
-      url.searchParams.delete("mode");
-    }
-    window.history.replaceState({}, "", url.toString());
+    window.location.hash = `#${newMode}`;
+  };
+
+  // 모드 선택 버튼 컴포넌트
+  const ModeButtons = () => {
+    const baseButtonClass = "flex items-center gap-1 text-xs px-3 py-1.5 font-semibold transition-all [&_svg]:!text-current [&_span]:!text-current";
+    const activeButtonClass = "!bg-blue-600 !text-white hover:!bg-blue-700 hover:!text-white hover:[&_svg]:!text-white hover:[&_span]:!text-white shadow-lg !border-0";
+    const inactiveButtonClass = "!bg-white !backdrop-blur-sm !border-2 !border-gray-300 !text-gray-900 hover:!bg-gray-100 hover:!text-gray-900 hover:[&_svg]:!text-gray-900 hover:[&_span]:!text-gray-900 shadow-md hover:shadow-lg";
+
+    return (
+      <div className="fixed top-4 right-4 z-50 flex gap-2">
+        <Button
+          onClick={() => toggleMode("presentation")}
+          variant="outline"
+          size="sm"
+          className={`${baseButtonClass} ${mode === "presentation" ? activeButtonClass : inactiveButtonClass}`}
+        >
+          <Presentation className="h-3 w-3" />
+          <span className="hidden sm:inline">프레젠테이션</span>
+        </Button>
+        <Button
+          onClick={() => toggleMode("dashboard")}
+          variant="outline"
+          size="sm"
+          className={`${baseButtonClass} ${mode === "dashboard" ? activeButtonClass : inactiveButtonClass}`}
+        >
+          <Monitor className="h-3 w-3" />
+          <span className="hidden sm:inline">대시보드</span>
+        </Button>
+        <Button
+          onClick={() => toggleMode("docs")}
+          variant="outline"
+          size="sm"
+          className={`${baseButtonClass} ${mode === "docs" ? activeButtonClass : inactiveButtonClass}`}
+        >
+          <FileText className="h-3 w-3" />
+          <span className="hidden sm:inline">설계 문서</span>
+        </Button>
+      </div>
+    );
   };
 
   // 모드 전환 버튼 (개발용)
   if (mode === "dashboard") {
     return (
       <div>
-        {/* 모드 전환 버튼 */}
-        <div className="fixed top-4 right-4 z-50">
-          <Button
-            onClick={() => toggleMode("presentation")}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1 text-xs px-2 py-1"
-          >
-            <Presentation className="h-3 w-3" />
-            <span className="hidden sm:inline">
-              프레젠테이션
-            </span>
-          </Button>
-        </div>
+        <ModeButtons />
         <DashboardApp />
+      </div>
+    );
+  }
+
+  if (mode === "docs") {
+    return (
+      <div>
+        <ModeButtons />
+        <DocsApp />
       </div>
     );
   }
 
   return (
     <div>
-      {/* 모드 전환 버튼 */}
-      <div className="fixed top-4 right-2 z-50">
-        <Button
-          onClick={() => toggleMode("dashboard")}
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-1 bg-black/40 border-white/30 text-white hover:bg-black/60 text-xs px-2 py-1 backdrop-blur-sm"
-        >
-          <Monitor className="h-3 w-3" />
-          <span className="hidden sm:inline">대시보드</span>
-        </Button>
-      </div>
-      <PresentationApp />
+      <PresentationApp onModeChange={toggleMode} currentMode={mode} />
     </div>
   );
 }

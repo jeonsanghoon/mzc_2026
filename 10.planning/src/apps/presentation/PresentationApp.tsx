@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Progress } from "../../components/ui/progress";
-import { ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowRight, ArrowLeft, Sparkles, Monitor, Presentation, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 import { ProblemSlide } from "./slides/ProblemSlide";
@@ -13,9 +13,13 @@ import { BenefitsSlide } from "./slides/BenefitsSlide";
 import { RoadmapSlide } from "./slides/RoadmapSlide";
 import { ROISlide } from "./slides/ROISlide";
 
-export function PresentationApp() {
-  const [currentSlide, setCurrentSlide] = useState(0);
+interface PresentationAppProps {
+  
+  onModeChange?: (mode: "dashboard" | "presentation" | "docs") => void;
+  currentMode?: "dashboard" | "presentation" | "docs";
+}
 
+export function PresentationApp({ onModeChange, currentMode = "presentation" }: PresentationAppProps = {}) {
   const slides = [
     {
       id: "title",
@@ -57,17 +61,63 @@ export function PresentationApp() {
       id: "roi",
       title: "ROI & 비즈니스 임팩트",
       component: <ROISlide />,
-      bgColor: "from-emerald-500 to-green-600",
+      bgColor: "from-pink-500 to-rose-500",
     },
   ];
 
-  const nextSlide = () =>
-    setCurrentSlide((prev) => (prev + 1) % slides.length);
-  const prevSlide = () =>
-    setCurrentSlide(
-      (prev) => (prev - 1 + slides.length) % slides.length,
-    );
-  const goToSlide = (index: number) => setCurrentSlide(index);
+  const [currentSlide, setCurrentSlide] = useState(() => {
+    // 초기 상태 설정 시 해시 확인
+    const hash = window.location.hash.slice(1);
+    if (hash.startsWith("presentation/")) {
+      const slideId = hash.replace("presentation/", "");
+      const slideIndex = slides.findIndex(s => s.id === slideId);
+      return slideIndex !== -1 ? slideIndex : 0;
+    }
+    return 0;
+  });
+
+  // 해시로 슬라이드 감지 및 업데이트
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1);
+      
+      if (hash.startsWith("presentation/")) {
+        const slideId = hash.replace("presentation/", "");
+        const slideIndex = slides.findIndex(s => s.id === slideId);
+        if (slideIndex !== -1 && slideIndex !== currentSlide) {
+          setCurrentSlide(slideIndex);
+        }
+      } else if (hash === "presentation") {
+        if (currentSlide !== 0) {
+          setCurrentSlide(0);
+        }
+      }
+    };
+
+    // 초기 로드
+    handleHashChange();
+    
+    // 해시 변경 이벤트 리스너
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [slides, currentSlide]);
+
+  const nextSlide = () => {
+    const next = (currentSlide + 1) % slides.length;
+    setCurrentSlide(next);
+    window.location.hash = `#presentation/${slides[next].id}`;
+  };
+  
+  const prevSlide = () => {
+    const prev = (currentSlide - 1 + slides.length) % slides.length;
+    setCurrentSlide(prev);
+    window.location.hash = `#presentation/${slides[prev].id}`;
+  };
+  
+  const goToSlide = (index: number) => {
+    setCurrentSlide(index);
+    window.location.hash = `#presentation/${slides[index].id}`;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white overflow-hidden">
@@ -108,25 +158,43 @@ export function PresentationApp() {
               </motion.div>
             </div>
 
-            {/* 버튼: 겹침 방지를 위해 독립 행으로 배치 */}
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.8, duration: 0.6 }}
-              className="w-full flex justify-center items-center"
-            >
-              <Button
-                onClick={nextSlide}
-                size="lg"
-                className="bg-white text-blue-700 hover:bg-blue-50 text-sm sm:text-base md:text-lg px-4 sm:px-6 md:px-8 py-3 sm:py-4 min-h-[48px] touch-manipulation font-semibold shadow-lg hover:shadow-xl transition-all"
+            {/* 모드 선택 버튼 - 오른쪽 위 (첫 화면) */}
+            {onModeChange && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.6, duration: 0.5 }}
+                className="fixed top-4 right-4 z-50 flex gap-2"
               >
-                <span className="hidden sm:inline">
-                  프레젠테이션 시작
-                </span>
-                <span className="sm:hidden">시작</span>
-                <ArrowRight className="ml-1 sm:ml-2 h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
-            </motion.div>
+                <Button
+                  onClick={nextSlide}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1 !bg-blue-600 !text-white hover:!bg-blue-700 hover:!text-white hover:[&_svg]:!text-white hover:[&_span]:!text-white text-xs px-3 py-1.5 font-semibold shadow-lg !border-0 [&_svg]:!text-white [&_span]:!text-white"
+                >
+                  <Presentation className="h-3 w-3" />
+                  <span className="hidden sm:inline">프레젠테이션</span>
+                </Button>
+                <Button
+                  onClick={() => onModeChange("dashboard")}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1 !bg-white !backdrop-blur-sm !border-2 !border-gray-300 !text-gray-900 hover:!bg-gray-100 hover:!text-gray-900 hover:[&_svg]:!text-gray-900 hover:[&_span]:!text-gray-900 text-xs px-3 py-1.5 shadow-md hover:shadow-lg transition-all font-semibold [&_svg]:!text-gray-900 [&_span]:!text-gray-900"
+                >
+                  <Monitor className="h-3 w-3" />
+                  <span className="hidden sm:inline">대시보드</span>
+                </Button>
+                <Button
+                  onClick={() => onModeChange("docs")}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1 !bg-white !backdrop-blur-sm !border-2 !border-gray-300 !text-gray-900 hover:!bg-gray-100 hover:!text-gray-900 hover:[&_svg]:!text-gray-900 hover:[&_span]:!text-gray-900 text-xs px-3 py-1.5 shadow-md hover:shadow-lg transition-all font-semibold [&_svg]:!text-gray-900 [&_span]:!text-gray-900"
+                >
+                  <FileText className="h-3 w-3" />
+                  <span className="hidden sm:inline">설계 문서</span>
+                </Button>
+              </motion.div>
+            )}
 
             {/* 하단 포인트 텍스트 */}
             <motion.div
@@ -162,6 +230,43 @@ export function PresentationApp() {
       {/* Content Slides */}
       {currentSlide > 0 && (
         <div className="min-h-screen flex flex-col">
+          {/* 모드 선택 셀렉트 박스 - 오른쪽 위 (다른 슬라이드에서) */}
+          {onModeChange && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="fixed top-4 right-4 z-50 flex gap-2"
+            >
+              <Button
+                onClick={() => setCurrentSlide(0)}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1 !bg-blue-600 !text-white hover:!bg-blue-700 hover:!text-white hover:[&_svg]:!text-white hover:[&_span]:!text-white text-xs px-3 py-1.5 font-semibold shadow-lg !border-0 [&_svg]:!text-white [&_span]:!text-white"
+              >
+                <Presentation className="h-3 w-3" />
+                <span className="hidden sm:inline">프레젠테이션</span>
+              </Button>
+              <Button
+                onClick={() => onModeChange("dashboard")}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1 !bg-white !backdrop-blur-sm !border-2 !border-gray-300 !text-gray-900 hover:!bg-gray-100 hover:!text-gray-900 hover:[&_svg]:!text-gray-900 hover:[&_span]:!text-gray-900 text-xs px-3 py-1.5 shadow-md hover:shadow-lg transition-all font-semibold [&_svg]:!text-gray-900 [&_span]:!text-gray-900"
+              >
+                <Monitor className="h-3 w-3" />
+                <span className="hidden sm:inline">대시보드</span>
+              </Button>
+              <Button
+                onClick={() => onModeChange("docs")}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1 !bg-white !backdrop-blur-sm !border-2 !border-gray-300 !text-gray-900 hover:!bg-gray-100 hover:!text-gray-900 hover:[&_svg]:!text-gray-900 hover:[&_span]:!text-gray-900 text-xs px-3 py-1.5 shadow-md hover:shadow-lg transition-all font-semibold [&_svg]:!text-gray-900 [&_span]:!text-gray-900"
+              >
+                <FileText className="h-3 w-3" />
+                <span className="hidden sm:inline">설계 문서</span>
+              </Button>
+            </motion.div>
+          )}
+
           {/* Header */}
           <motion.header
             initial={{ y: -50, opacity: 0 }}
