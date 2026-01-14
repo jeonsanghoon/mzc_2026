@@ -10,27 +10,43 @@ import mermaid from "mermaid";
 
 const docFiles = [
   {
-    id: "process-flow",
-    title: "프로세스 플로우",
-    description: "전체 시스템 프로세스를 Mermaid 다이어그램으로 정리한 문서",
-    icon: GitBranch,
+    id: "design-guide",
+    title: "0. 설계 문서 가이드",
+    description: "📖 시작점: 문서 읽는 순서 안내, 전체 시스템 흐름 요약, 예시 시나리오",
+    icon: BookOpen,
+    color: "text-slate-700",
+    file: "DESIGN_GUIDE.md",
+  },
+  {
+    id: "service-overview",
+    title: "1. 서비스 개요",
+    description: "💼 비즈니스 관점: 서비스 가치, 해결 문제, KPI 개선, 비즈니스 모델",
+    icon: FileText,
     color: "text-blue-600",
+    file: "SERVICE_OVERVIEW.md",
+  },
+  {
+    id: "process-flow",
+    title: "2. 프로세스 플로우",
+    description: "🔄 시스템 흐름: 데이터 수집→처리→저장→분석→제어 전체 프로세스 (다이어그램)",
+    icon: GitBranch,
+    color: "text-green-600",
     file: "PROCESS_FLOW.md",
   },
   {
     id: "project-analysis",
-    title: "프로젝트 분석",
-    description: "프로젝트 상세 분석 및 기술 스택 문서",
+    title: "3. 기술 분석",
+    description: "⚙️ 기술 상세: 기술 스택 선택 근거, CQRS 패턴, 인프라 구성, 구현 상세",
     icon: BookOpen,
     color: "text-purple-600",
     file: "PROJECT_ANALYSIS.md",
   },
   {
     id: "readme",
-    title: "프로젝트 개요",
-    description: "프로젝트 개요 및 빠른 시작 가이드",
+    title: "4. 웹 애플리케이션 가이드",
+    description: "🌐 웹 앱: 프로젝트 구조, 설치 방법, 3가지 모드 사용법 (프레젠테이션/대시보드/문서)",
     icon: FileText,
-    color: "text-green-600",
+    color: "text-orange-600",
     file: "README.md",
   },
 ];
@@ -48,14 +64,20 @@ function ProjectStructureDiagram() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="bg-slate-700 text-white px-6 py-4 rounded-lg text-center font-semibold hover:bg-slate-800 transition-colors">
+              DESIGN_GUIDE.md
+            </div>
+            <div className="bg-blue-500 text-white px-6 py-4 rounded-lg text-center font-semibold hover:bg-blue-600 transition-colors">
+              SERVICE_OVERVIEW.md
+            </div>
             <div className="bg-blue-500 text-white px-6 py-4 rounded-lg text-center font-semibold hover:bg-blue-600 transition-colors">
               PROCESS_FLOW.md
             </div>
             <div className="bg-blue-500 text-white px-6 py-4 rounded-lg text-center font-semibold hover:bg-blue-600 transition-colors">
               PROJECT_ANALYSIS.md
             </div>
-            <div className="bg-blue-500 text-white px-6 py-4 rounded-lg text-center font-semibold hover:bg-blue-600 transition-colors">
+            <div className="bg-orange-500 text-white px-6 py-4 rounded-lg text-center font-semibold hover:bg-orange-600 transition-colors">
               README.md
             </div>
           </div>
@@ -195,14 +217,20 @@ function ProjectStructureDiagram() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="bg-slate-700 text-white px-6 py-4 rounded-lg text-center font-semibold hover:bg-slate-800 transition-colors">
+              DESIGN_GUIDE.md
+            </div>
+            <div className="bg-blue-500 text-white px-6 py-4 rounded-lg text-center font-semibold hover:bg-blue-600 transition-colors">
+              SERVICE_OVERVIEW.md
+            </div>
             <div className="bg-blue-500 text-white px-6 py-4 rounded-lg text-center font-semibold hover:bg-blue-600 transition-colors">
               PROCESS_FLOW.md
             </div>
             <div className="bg-blue-500 text-white px-6 py-4 rounded-lg text-center font-semibold hover:bg-blue-600 transition-colors">
               PROJECT_ANALYSIS.md
             </div>
-            <div className="bg-blue-500 text-white px-6 py-4 rounded-lg text-center font-semibold hover:bg-blue-600 transition-colors">
+            <div className="bg-orange-500 text-white px-6 py-4 rounded-lg text-center font-semibold hover:bg-orange-600 transition-colors">
               README.md
             </div>
           </div>
@@ -1258,14 +1286,53 @@ export function DocsApp() {
               </CardContent>
             </Card>
 
-            {/* 섹션 목록 - 기술 스택별 그룹화 */}
+            {/* 모든 섹션 목록 (순서대로) */}
+            {selectedDoc && sections.length > 0 && (
+              <Card className="hidden xl:block mb-4">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base sm:text-lg">모든 섹션</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">{sections.length}개 섹션 (순서대로)</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-1 max-h-[calc(50vh-200px)] overflow-y-auto">
+                  {sections.map((section) => {
+                    const isActive = activeSection === section.id;
+                    const indentLevel = section.level > 2 ? (section.level - 2) * 8 : 0;
+                    
+                    return (
+                      <Button
+                        key={section.id}
+                        variant={isActive ? "default" : "ghost"}
+                        className={`w-full justify-start text-left h-auto py-1.5 px-2 text-xs ${
+                          isActive 
+                            ? "!bg-blue-600 !text-white hover:!bg-blue-700 hover:!text-white" 
+                            : "!text-gray-700 hover:!bg-gray-100 hover:!text-gray-900"
+                        }`}
+                        style={{ paddingLeft: `${8 + indentLevel}px` }}
+                        onClick={() => {
+                          setActiveSection(section.id);
+                          const docId = docFiles.find(d => d.file === selectedDoc)?.id;
+                          if (docId) {
+                            window.location.hash = `#docs/${docId}/${section.id}`;
+                          }
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                      >
+                        <span className="font-normal flex-1 truncate text-left">{section.title}</span>
+                      </Button>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 기술 스택별 섹션 (별도 분리) */}
             {selectedDoc && sections.length > 0 && (
               <Card className="hidden xl:block">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base sm:text-lg">기술 스택별 섹션</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">{sections.length}개 섹션</CardDescription>
+                  <CardDescription className="text-xs sm:text-sm">카테고리별로 분류된 섹션</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto">
+                <CardContent className="space-y-2 max-h-[calc(50vh-200px)] overflow-y-auto">
                   {techCategories.map((category) => {
                     const categorySections = sections.filter(s => s.category === category.id);
                     

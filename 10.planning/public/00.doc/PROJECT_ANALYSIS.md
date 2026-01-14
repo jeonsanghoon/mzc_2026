@@ -1,467 +1,481 @@
-# 프로젝트 전체 분석 문서
+# 기술 분석 문서
 
-## 📋 프로젝트 개요
+## 📋 문서 개요
 
-**프로젝트명**: 서비스 구성 제안  
-**버전**: 0.1.0  
-**목적**: 데이터 통합 플랫폼 기반 지능형 IoT 관리 솔루션 서비스 제안 프레젠테이션 및 대시보드
+이 문서는 **통합 데이터 플랫폼 기반 지능형 IoT 관리 솔루션**의 기술적 상세 분석 문서입니다.
 
-**원본 디자인**: [Figma 디자인](https://www.figma.com/design/Vw6CObicvb987G2VWpPpHF/%EC%84%9C%EB%B9%84%EC%8A%A4-%EA%B5%AC%EC%84%B1-%EC%A0%9C%EC%95%88)
+> **참고**: 서비스 개요 및 비즈니스 관점의 내용은 [SERVICE_OVERVIEW.md](./SERVICE_OVERVIEW.md)를 참고하세요.
 
 ---
 
-## 🏗️ 프로젝트 구조
+## 🏗️ 통합 데이터 플랫폼 (핵심 - 기술적 상세)
 
-### 기술 스택
-- **프레임워크**: React 18.3.1 + TypeScript
-- **빌드 도구**: Vite 6.3.5
-- **UI 라이브러리**: 
-  - Radix UI (접근성 기반 컴포넌트)
-  - shadcn/ui 스타일 컴포넌트
-  - Tailwind CSS
-- **애니메이션**: Motion (Framer Motion fork)
-- **차트**: Recharts 2.15.2
-- **아이콘**: Lucide React
+### 플랫폼 아키텍처
 
-### 주요 의존성
-```json
-{
-  "@radix-ui/*": "UI 컴포넌트 (20개 이상)",
-  "motion": "애니메이션 라이브러리",
-  "recharts": "차트 및 데이터 시각화",
-  "react-hook-form": "폼 관리",
-  "next-themes": "다크모드 지원",
-  "sonner": "토스트 알림",
-  "vaul": "드로어 컴포넌트"
-}
-```
+**통합 데이터 플랫폼**은 이 서비스의 핵심이며, 모든 기능의 기술적 기반이 됩니다.
 
----
+#### 플랫폼의 핵심 통합 프로세스
 
-## 🎯 애플리케이션 아키텍처
+통합 데이터 플랫폼은 **두 가지 핵심 통합 프로세스**로 구성됩니다:
 
-### 이중 모드 구조
-프로젝트는 **두 가지 주요 모드**로 구성됩니다:
+##### 1. 센서 데이터 통합 (플랫폼 내 실시간 스트리밍 통합)
 
-1. **Presentation Mode** (기본 모드)
-   - 서비스 제안 프레젠테이션 슬라이드
-   - 총 7개 슬라이드: 제목 + 6개 콘텐츠 슬라이드
+**기술적 구현**:
+- **다중 프로토콜 지원**: TCP (ECS), MQTT (IoT Core), REST API (ECS, 특별한 경우만 API Gateway)
+- **VPN 터널링**: Site-to-Site VPN을 통한 기존 온프레미스 시스템과 AWS 간 안전한 연동
+- **실시간 스트리밍**: Kinesis Data Streams를 통한 실시간 데이터 통합 수집
+- **YAML 기반 변환**: Lambda Function (Node.js 20.x, ESM 모듈)을 통한 다양한 데이터 형식 변환
+  - **지원 형식**: Hex Binary, JSON, CSV
+  - **파싱 방식**:
+    - 길이 기반 파싱 (Length-based)
+    - Key-Value 파싱 (2바이트 헥스 키)
+    - 하이브리드 파싱 (세퍼레이터 + 길이)
+- **데이터 분류**: Lambda Function을 통한 제품별/디바이스별 분류 및 라우팅
+- **스키마 검증**: Data Contract를 통한 데이터 품질 보장
+- **DLQ 처리**: SQS Dead Letter Queue를 통한 변환 실패 데이터 보존 및 재처리
+- **배치 처리**: 파일 데이터는 별도 배치 Job (Glue/ECS/Lambda)으로 처리
 
-2. **Dashboard Mode**
-   - 상세 대시보드 및 분석 화면
-   - 7개 프레임으로 구성된 상세 분석
+**표준 텔레메트리 데이터 구조**:
+- **중요**: 센서 데이터에는 고객 정보(`customerId`, `siteId`)가 포함되지 않습니다.
+- **필수 필드**: `device_id`, `device_timestamp`, `productId`, `metrics`
+- **허브-차일드 구조**: `hub_id`, `hub_timestamp`, `childDeviceId` (허브-차일드 구조인 경우)
+- **타임스탬프 관리**: 
+  - `device_timestamp`: 디바이스에서 생성된 타임스탬프 (디바이스 측 시간)
+  - `hub_timestamp`: 허브에서 수신/전달한 타임스탬프 (허브 측 시간)
+  - `ingest_timestamp`: 플랫폼 수신 타임스탬프 (Kinesis 수신 시점, 자동 생성)
+- **토픽에서 추출**: MQTT 토픽에서 `hub_id`, `device_id` 추출
+- **원본 참조**: `rawRef` (프로토콜, 토픽, 원본 형식 등)
+- **고객 정보 조인**: 집계 단계에서 `device_id` → `siteId` → `customerId` 조인 수행
 
-### 모드 전환
-- URL 파라미터로 모드 제어: `?mode=presentation`
-- 우측 상단 버튼으로 모드 전환 가능
+**허브-차일드 디바이스 구조**:
+- **허브 디바이스 (Hub Device)**: 여러 차일드 디바이스를 관리하는 게이트웨이
+- **차일드 디바이스 (Child Device)**: 허브를 통해 연결되는 실제 센서/액추에이터
+- **단독 디바이스 (Standalone Device)**: 허브 없이 직접 연결되는 디바이스
+- **MQTT 토픽 구조**:
+  - 허브: `devices/{hub_id}/telemetry`
+  - 차일드: `devices/{hub_id}/child/{device_id}/telemetry`
+  - 단독: `devices/{device_id}/telemetry`
+- **토픽 파싱**: Lambda 컨버트 모듈이 MQTT 토픽을 파싱하여 `hub_id`, `device_id`, `childDeviceId` 추출
+- **타임스탬프 관리**: 
+  - 토픽에서 추출한 `hub_id`, `device_id`와 함께 각각의 타임스탬프(`hub_timestamp`, `device_timestamp`) 관리
+  - 디바이스 페이로드에서 `device_timestamp` 추출
+  - 허브에서 수신한 시점을 `hub_timestamp`로 기록
 
----
+##### 2. 기초 데이터 통합 (플랫폼 내 분산 데이터베이스 통합)
 
-## 📊 Presentation Mode 상세
+**기술적 구현**:
+- **분산된 RDBMS 통합**: MariaDB, MySQL, MSSQL, Oracle 등 다양한 데이터베이스 통합
+- **NoSQL 통합**: MongoDB, DynamoDB 등 NoSQL 데이터베이스 통합
+- **DMS (Database Migration Service)**: 분산된 RDBMS를 통합 Aurora PostgreSQL로 마이그레이션
+  - **Full Load**: 초기 데이터 전체 마이그레이션
+  - **CDC (Change Data Capture)**: 실시간 변경사항 동기화
+    - DMS CDC: RDBMS 트랜잭션 로그 기반 실시간 캡처 → Kinesis Data Streams
+- **NoSQL CDC**: 
+  - MongoDB Change Streams → Kinesis Producer SDK → Kinesis Data Streams
+  - DynamoDB Streams → Lambda Trigger → Kinesis Data Streams
+- **통합 Aurora PostgreSQL**: 모든 기초 정보를 통합 저장
+  - **CQRS 패턴**: Read/Write Endpoint 분리
+    - **Write Endpoint**: Primary Aurora (데이터 변경 작업 - Command)
+    - **Read Endpoint**: Read Replica (데이터 조회 작업 - Query)
+    - **효과**: 조회 성능 향상, Write 부하 분산, 확장성 향상
+- **데이터 품질 관리**: 중복 제거, 정규화, 일관성 검증
 
-### 슬라이드 구성
-1. **제목 슬라이드**
-   - "데이터 통합 플랫폼 - 지능형 IoT 관리 솔루션"
-   - 그라데이션 배경 (blue-600 to purple-600)
+##### 3. 통합 분석 데이터 생성 (플랫폼 핵심 출력)
 
-2. **현재 문제점 (ProblemSlide)**
-   - 데이터 분산 문제 (시스템 간 데이터 통합 불가)
-   - 느린 장애 대응
-   - 높은 운영 비용
-   - 제한적 확장성
-   - 현재 상황 지표 대시보드
+**기술적 구현**:
+- **데이터 조인**: 통합 Aurora Read Endpoint의 기초 정보와 센서 데이터를 조인 (CQRS 패턴)
+- **데이터 보강**: Lambda Function을 통한 비즈니스 룰 적용 및 컨텍스트 정보 추가
+- **계산식 기반 분석 데이터 생성**: 
+  - **계산식 등록 및 관리**: 제품별/고객별/디바이스별 계산식 등록 시스템
+  - **실시간 계산식 적용**: Lambda Function을 통한 실시간 계산
+  - **계산 결과 저장**: 분석 데이터로 저장 및 활용
+- **계층별 저장**: Hot/Warm/Cold 레이어로 분리 저장
 
-3. **솔루션 개요 (SolutionSlide)**
-   - 통합 데이터 플랫폼
-   - AI 기반 지능형 분석
-   - 실시간 자동화
-   - 안전한 원격 제어
-   - 솔루션 플로우 (4단계)
-   - 예상 개선 효과 KPI
+### 데이터 저장 계층 (Data Lake Architecture)
 
-4. **시스템 아키텍처 (ArchitectureSlide)**
-   - 4계층 아키텍처:
-     - 데이터 수집 계층
-     - 데이터 플랫폼 계층
-     - 분석 엔진 계층
-     - 자동화 제어 계층
-   - 데이터 플로우 성능 지표
-   - AWS 기술 스택
+통합 분석 데이터는 **3계층 데이터 레이어**로 분리 저장됩니다:
 
-5. **핵심 기능 및 이점 (BenefitsSlide)**
-   - 기능별 상세 설명 및 이점
+#### Hot Layer (실시간 접근)
+- **저장소**: DocumentDB (CQRS 패턴 적용)
+  - **Write Endpoint**: Primary DocumentDB (데이터 변경 작업)
+  - **Read Endpoint**: Read Replica (데이터 조회 작업)
+- **용도**: 실시간 대시보드, 즉시 조회가 필요한 통합 데이터, **제품별 시간별/일별 집계**
+- **특징**: 빠른 읽기/쓰기 성능, 실시간 쿼리 지원, MongoDB 호환 NoSQL, Read/Write 분리로 성능 최적화
+- **데이터**: 
+  - 센서 데이터 + 기초 정보가 조인된 실시간 데이터
+  - **제품별 시간별 집계** (1시간, 6시간 단위)
+  - **제품별 일별 집계** (일 단위)
+- **집계 특징**: 센서 데이터에는 고객 정보가 없으므로, 제품별 집계만 수행 (고객 정보 조인 불필요)
+- **CQRS 패턴**: Command(Write)와 Query(Read) 분리로 효율적 운영
 
-6. **구현 로드맵 (RoadmapSlide)**
-   - 단계별 구현 계획
+#### Warm Layer (빠른 조회)
+- **저장소**: Aurora PostgreSQL (CQRS 패턴 적용)
+  - **Write Endpoint**: Primary Aurora (데이터 변경 작업)
+  - **Read Endpoint**: Read Replica (데이터 조회 작업)
+- **용도**: 통합 기초 정보 + **일별 고객별 집계**, 분석 리포트, 알람 이력, 에러 알림 처리 서비스 정보, **계산식 적용 분석 데이터**
+- **특징**: 관계형 데이터 조인, 복잡한 쿼리 지원, Read/Write 분리로 성능 최적화, 고가용성 및 자동 백업
+- **데이터**: 
+  - 통합 기초 정보 (device → site → customer 매핑)
+  - **일별 고객별 제품별 집계** (고객 정보 조인 후 집계)
+  - **계산식 적용 분석 데이터** (고객별 제품별 일별 데이터에 계산식 적용 결과)
+  - 알람 이력, 에러 알림 처리 서비스 정보
+- **집계 특징**: 
+  - DocumentDB의 제품별 일별 집계를 읽어와서
+  - Aurora의 기초 정보(deviceId → customerId)와 조인하여
+  - 고객별 제품별 일별 집계 생성
+- **계산식 적용**: 고객별 제품별 일별 집계 데이터부터 계산식 적용하여 분석 데이터 생성
+- **CQRS 패턴**: Command(Write)와 Query(Read) 분리로 효율적 운영
 
-7. **ROI & 비즈니스 임팩트 (ROISlide)**
-   - 투자 대비 효과 분석
-
-### 프레젠테이션 기능
-- 키보드/마우스 네비게이션
-- 슬라이드 인디케이터
-- 진행률 표시
-- 애니메이션 전환 효과
-- 반응형 디자인 (모바일/태블릿/데스크톱)
-
----
-
-## 📈 Dashboard Mode 상세
-
-### 프레임 구성 (7개)
-1. **Frame 1: 데이터 문제 정의 (ProblemFrame)**
-   - 5개 카테고리별 문제 분석:
-     - 데이터 문제 (RDBMS/NoSQL/File/IoT 분산)
-     - 운영 문제 (알람 오탐/미탐, 대응 지연)
-     - 제품 문제 (성능 데이터 부족)
-     - 서비스 문제 (원격 제어 미흡)
-     - 보안/비용 문제 (권한 관리, 비용 과다)
-   - 룰 엔진 예시 (5가지 타입):
-     - Threshold 룰
-     - Anomaly 룰
-     - Correlation 룰
-     - Predictive 룰
-     - Batch Check 룰
-   - 구체적 해결 방안 로드맵 (5단계)
-   - 전체 영향 및 예상 효과
-
-2. **Frame 2: 데이터 표준화 (SchemaFrame)**
-   - 7개 도메인 통합 스키마:
-     - telemetry (시계열)
-     - event (알람/경고)
-     - device (상태/설정/펌웨어)
-     - site (사이트 정보)
-     - customer (고객 정보)
-     - control (제어 명령)
-     - ota (업데이트)
-   - 핵심 필드 구조:
-     - ID 필드, 값 필드, 시간 필드, 품질 필드
-   - 도메인별 확장 필드
-   - 데이터 품질 규칙
-
-3. **Frame 3: 데이터 통합 플랫폼 (DataIntegrationFrame)**
-   - **통합 과제 탭**:
-     - 3가지 핵심 문제 및 해결 방안
-   - **품질 관리 탭**:
-     - 데이터 품질 프레임워크 (스키마 검증, 무결성, 비즈니스 룰)
-     - 실시간 품질 지표
-   - **아키텍처 탭**:
-     - 원데이터 수집 경로 (IoT/센서/측정 데이터 → S3 Raw)
-     - 기초 정보 수집 (업체/고객/사용자/사이트/장비 정보 → RDS)
-     - S3 3계층 구조 (Raw, Standardized, Curated)
-     - 소비 레이어 (Hot/Warm/Cold)
-     - 수집 방식 옵션 비교
-   - **보안 연결 탭**:
-     - Site-to-Site VPN + AWS PrivateLink
-     - 보안 베스트 프랙티스
-   - **생명주기 탭**:
-     - 원데이터 생명주기 (Raw → Hot → Cold)
-     - 기초 정보 관리 (RDS 상시 유지)
-     - Hot/Warm/Cold 데이터 저장 전략
-     - 자동화된 데이터 생명주기 관리
-     - 비용 최적화 효과
-
-4. **Frame 4: 실시간 데이터 모니터링 (MonitoringFrame)**
-   - 실시간 모니터링 대시보드
-   - 알람 관리 시스템
-
-5. **Frame 5: 데이터 기반 자동 제어 (RemoteControlFrame)**
-   - Shadow 기반 원격 제어
-   - OTA 관리 시스템
-
-6. **Frame 6: 지능형 데이터 분석 (AnalysisFrame)**
-   - AI 기반 분석 엔진
-   - 예측 분석 시스템
-
-7. **Frame 7: 데이터 활용 확장 (FutureFrame)**
-   - 향후 확장 계획
-   - 고객별 맞춤 서비스
-
-### 대시보드 주요 기능
-- 프레임별 탭 네비게이션
-- 상세 데이터 시각화
-- KPI 지표 카드
-- 반응형 레이아웃
+#### Cold Layer (장기 보관)
+- **저장소**: Apache Iceberg on S3 + Athena
+- **용도**: 통합 데이터 장기 보관, 히스토리 분석
+- **특징**: 저렴한 스토리지 비용, 대용량 데이터 분석, RDS와 조인 가능
+- **데이터**: 센서 데이터와 기초 정보가 조인된 장기 보관 데이터
+- **Iceberg 장점**:
+  - ACID 트랜잭션 지원
+  - 스키마 진화 및 파티션 진화
+  - 시간 여행 쿼리
+  - 파티션 프루닝으로 쿼리 비용 절감
 
 ---
 
-## 🎨 UI/UX 특징
+## 📊 주요 기능 (기술적 상세)
 
-### 디자인 시스템
-- **컬러 스킴**: 
-  - 프레젠테이션: 다크 그라데이션 배경 (slate-900 to slate-800)
-  - 대시보드: 밝은 배경 (slate-50 to slate-100)
-- **컴포넌트**: shadcn/ui 기반 일관된 디자인
-- **아이콘**: Lucide React 아이콘 세트
-- **타이포그래피**: 반응형 텍스트 크기 (sm/md/lg/xl)
+### 1. 통합 데이터 플랫폼 (핵심)
 
-### 반응형 디자인
-- 모바일 우선 설계
-- 브레이크포인트:
-  - sm: 640px
-  - md: 768px
-  - lg: 1024px
-  - xl: 1280px
-- 터치 최적화 (min-height: 44px/48px)
+위에서 상세히 설명한 통합 데이터 플랫폼이 모든 기능의 기술적 기반입니다.
 
-### 애니메이션
-- Motion 라이브러리 활용
-- 페이지 전환 애니메이션
-- 컴포넌트 등장 애니메이션 (fade, slide, scale)
-- 부드러운 전환 효과
+**핵심 역할**:
+- 센서 데이터와 기초 데이터를 단일 플랫폼으로 통합
+- 실시간 데이터 처리 및 변환
+- 통합 분석 데이터 생성 및 제공
+- 모든 고급 기능(모니터링, 제어, 분석)의 기반 제공
 
----
+**기술적 특징**:
+- 다중 프로토콜 지원 (TCP/ECS, MQTT/IoT Core, REST/ECS)
+- YAML 기반 유연한 데이터 변환
+- CQRS 패턴으로 성능 최적화
+- 3계층 데이터 저장 (Hot/Warm/Cold)
 
-## 📁 파일 구조 상세
+### 2. 지능형 모니터링 시스템
 
-```
-서비스 구성 제안/
-├── index.html                 # 진입점 HTML
-├── package.json              # 프로젝트 의존성 및 스크립트
-├── vite.config.ts            # Vite 설정 (포트 3000, React SWC)
-├── README.md                 # 프로젝트 설명
-│
-├── src/
-│   ├── main.tsx              # React 진입점
-│   ├── App.tsx               # 메인 앱 (모드 전환 로직)
-│   ├── index.css             # 전역 스타일
-│   │
-│   ├── apps/
-│   │   ├── presentation/
-│   │   │   ├── PresentationApp.tsx    # 프레젠테이션 메인
-│   │   │   └── slides/                # 6개 슬라이드 컴포넌트
-│   │   │       ├── ProblemSlide.tsx
-│   │   │       ├── SolutionSlide.tsx
-│   │   │       ├── ArchitectureSlide.tsx
-│   │   │       ├── BenefitsSlide.tsx
-│   │   │       ├── RoadmapSlide.tsx
-│   │   │       └── ROISlide.tsx
-│   │   │
-│   │   └── dashboard/
-│   │       └── DashboardApp.tsx       # 대시보드 메인
-│   │
-│   ├── components/
-│   │   ├── ui/                        # shadcn/ui 컴포넌트 (30+ 개)
-│   │   ├── dashboard/                 # 대시보드 전용 컴포넌트
-│   │   │   ├── AnalyticsDashboard.tsx
-│   │   │   ├── CustomerSLA.tsx
-│   │   │   ├── DeviceManagement.tsx
-│   │   │   ├── OTAManagement.tsx
-│   │   │   └── RealTimeMonitoring.tsx
-│   │   │
-│   │   ├── ProblemFrame.tsx           # 프레임 1
-│   │   ├── SchemaFrame.tsx            # 프레임 2
-│   │   ├── DataIntegrationFrame.tsx   # 프레임 3 (가장 복잡)
-│   │   ├── MonitoringFrame.tsx        # 프레임 4
-│   │   ├── RemoteControlFrame.tsx     # 프레임 5
-│   │   ├── AnalysisFrame.tsx          # 프레임 6
-│   │   └── FutureFrame.tsx            # 프레임 7
-│   │
-│   ├── styles/
-│   │   └── globals.css                # 전역 CSS
-│   │
-│   ├── guidelines/
-│   │   └── Guidelines.md              # 디자인 가이드라인 (템플릿)
-│   │
-│   └── Attributions.md                # 오픈소스 라이선스 정보
-│
-└── build/                              # 빌드 산출물 (빌드 후 생성)
-```
+#### 룰 엔진 (Lambda Function 기반)
+- **Threshold 룰**: 임계값 기반 알람
+- **Anomaly 룰**: 이상 패턴 감지 (Bedrock 기반)
+- **Correlation 룰**: 다중 데이터 소스 상관관계 분석
+- **Predictive 룰**: 예측 기반 사전 알람 (SageMaker 기반)
+- **Batch Check 룰**: EventBridge 스케줄러 기반 배치 통신 오류 체크
 
----
+#### 제품별 룰셋 (Aurora 저장 및 동적 로드)
+- 제품별로 독립적인 알람 룰셋 정의 및 관리 (Aurora에 저장)
+- Lambda Function에서 동적으로 룰셋 로드
+- 고객별, 디바이스별 맞춤 룰셋 적용
+- AI 기반 False Positive 감소 (Bedrock)
 
-## 🔧 빌드 및 실행
+#### 실시간 대시보드
+- DocumentDB Read Endpoint를 통한 실시간 데이터 조회
+- QuickSight 또는 커스텀 대시보드
+- KPI 지표 모니터링
+- 알람 현황 및 이력 관리 (Aurora PostgreSQL)
 
-### 개발 모드
-```bash
-npm install        # 의존성 설치
-npm run dev        # 개발 서버 실행 (포트 3000)
-```
+### 3. 원격 제어 및 OTA
 
-### 프로덕션 빌드
-```bash
-npm run build      # 빌드 실행 (build/ 디렉토리에 생성)
-npm run preview    # 빌드 결과 미리보기 (포트 4173)
-```
+#### AWS IoT Device Shadow
+- 디바이스 상태 동기화
+- 원격 명령 전송 및 실행
+- 상태 변경 이력 추적 (DocumentDB)
 
-### 빌드 설정
-- **출력 디렉토리**: `build/`
-- **타겟**: `esnext`
-- **React 플러그인**: `@vitejs/plugin-react-swc` (빠른 빌드)
+#### OTA 업데이트
+- 무선 펌웨어 업데이트
+- 롤백 및 버전 관리
+- 배포 전략 (Blue-Green, Canary)
+- 업데이트 진행 상황 모니터링 (CloudWatch)
 
----
+### 4. 자동 진단 및 대응
 
-## 💡 핵심 기능 요약
-
-### 1. 데이터 통합 플랫폼
-- 7개 도메인 통합 스키마
-- S3 3계층 구조 (Raw → Standardized → Curated)
-- Hot/Warm/Cold 데이터 저장 전략
-- Data Contract 기반 품질 관리
-
-### 2. 지능형 모니터링
-- 4가지 룰 엔진 타입 (Threshold, Anomaly, Correlation, Predictive)
-- 배치 통신 오류 체크
-- 실시간 알람 시스템
-- AI 기반 False Positive 감소
-
-### 3. 자동화 시스템
-- Shadow 기반 원격 제어
-- OTA 무선 펌웨어 업데이트
-- 자동 진단 및 대응
-- 폐쇄 루프 자동 해결
-
-### 4. AI/ML 분석
-- 예측 분석 시스템
-- 근본 원인 분석 (RCA)
+#### AI/ML 기반 분석
+- **Bedrock**: LLM 기반 이상 탐지, 근본 원인 분석 (RCA)
+- **SageMaker**: ML 모델 기반 예측 분석, 시계열 예측
 - 패턴 기반 이상 탐지
-- Amazon Bedrock/SageMaker 활용
+- 예방 보수 추천
 
-### 5. 보안 및 거버넌스
-- AWS PrivateLink + VPN
-- KMS 암호화
-- Lake Formation 권한 관리
-- CloudTrail 감사 로그
+#### 계산식 기반 분석 데이터 생성
+- **계산식 등록 및 관리**: 제품별/고객별/디바이스별 계산식 등록 (Aurora 저장)
+- **계산식 적용 시점**: **고객별 제품별 일별 집계 데이터부터** 계산식 적용
+  - 센서 데이터에는 고객 정보가 없으므로, 고객 정보가 포함된 집계 데이터부터 계산식 적용
+  - 제품별 시간별/일별 집계에는 계산식 적용하지 않음 (고객 정보 없음)
+- **계산식 적용 프로세스**:
+  1. EventBridge 스케줄러가 일별 집계 완료 후 트리거
+  2. Lambda Function이 Aurora에서 계산식 조회 (고객별/제품별)
+  3. 고객별 제품별 일별 집계 데이터에 계산식 평가
+  4. 계산 결과를 분석 데이터 테이블에 저장 (Aurora)
+- **계산 결과 저장**: 분석 데이터로 저장 및 활용 (Aurora)
+- **관리 화면 표시**: Aurora Read Endpoint에서 분석 데이터 조회하여 관리 화면에 표시
 
----
+#### 자동 대응 워크플로우
+- Step Functions 기반 워크플로우
+- 자동 제어 명령 실행 (IoT Device Shadow)
+- OTA 업데이트 자동 배포
+- 알림 및 에스컬레이션 (SNS)
 
-## 📊 예상 성과 지표 (KPI)
+### 5. 고객별 맞춤 서비스
 
-### 개선 효과
-- **알람 정확도**: 98% (+68%p)
-- **자동 해결률**: 85% (+65%p)
-- **운영비 절감**: 40%
-- **복구 시간**: 15분 (-75%)
-- **무선 업데이트 성공률**: 98%
-- **고객 만족도**: +25%
+#### SLA 관리
+- **고객별 SLA 정의**: Aurora에 고객사별 SLA 기준 저장 (가동률, 응답 시간 등)
+- **실시간 모니터링**: SLA 준수율을 실시간으로 계산 및 추적
+- **SLA 위반 알림**: 위반 시 즉시 고객사 및 운영팀에 알림 전송 (SNS)
+- **대응 조치**: 위반 발생 시 자동으로 대응 프로세스 시작
+- **성능 리포트**: QuickSight를 통한 고객사별 성능 리포트 생성
 
-### 비용 최적화
-- **스토리지 비용**: 80% 절감 (S3 Standard/IA 티어링 + Iceberg 최적화)
-- **처리 비용**: 60% 절감
-- **히스토리 분석**: 무제한 (서버리스 Athena + Iceberg 테이블 쿼리)
-- **Iceberg 파티션 프루닝**: 쿼리 비용 추가 절감
-
----
-
-## 🚀 로드맵 (6단계)
-
-1. **1-2개월**: 데이터 통합 및 표준화
-2. **2-3개월**: 지능형 모니터링 시스템 구축
-3. **3-4개월**: Shadow 기반 원격 제어 및 OTA
-4. **4-5개월**: 자동 진단 및 대응 시스템
-5. **5-6개월**: 고객별 맞춤 서비스 및 예측 분석
-6. **6개월+**: 지속적 개선 및 확장
-
----
-
-## 🛠️ 기술 아키텍처 (AWS 기반)
-
-### 데이터 인프라
-- Amazon Kinesis (원데이터 실시간 스트리밍)
-- AWS Lambda (서버리스 처리)
-- Amazon S3 (데이터 레이크, 원데이터 저장)
-- Apache Iceberg (Cold 원데이터 테이블 형식, ACID 트랜잭션, 스키마 진화)
-- Amazon RDS PostgreSQL (기초 정보 데이터 + 분석 집계 결과)
-- DynamoDB/OpenSearch (Hot 원데이터)
-
-### AI/ML 플랫폼
-- Amazon SageMaker (ML 모델)
-- Amazon Bedrock (LLM 기반 분석)
-- Amazon Forecast (예측)
-- Amazon QuickSight (BI)
-
-### IoT 관리
-- AWS IoT Core
-- Device Shadow
-- IoT Device Management
-- OTA Service
-
-### 모니터링 및 보안
-- CloudWatch (모니터링)
-- X-Ray (분산 추적)
-- SNS (알림)
-- EventBridge (이벤트 기반 아키텍처)
-- CloudTrail (감사)
-- GuardDuty (위협 탐지)
+#### 맞춤형 리포트
+- **고객별 맞춤 리포트**: 산업별, 고객사별로 다른 리포트 형식 제공
+- **자동 리포트 생성**: EventBridge 스케줄러를 통한 정기 리포트 자동 생성
+- **배포**: 이메일, 대시보드, API를 통한 리포트 배포
+- **대시보드 커스터마이징**: 고객사별로 다른 대시보드 레이아웃 및 지표 제공
+- **트렌드 분석**: 과거 데이터 분석을 통한 서비스 개선 제안
 
 ---
 
-## 📝 주요 특징
+## 🛠️ 기술 스택 (상세)
 
-### 코드 품질
-- TypeScript로 타입 안정성 확보
-- 컴포넌트 기반 모듈화
-- 반응형 디자인 일관성
-- 접근성 고려 (Radix UI)
+### 데이터 수집 및 스트리밍
+- **Kinesis Data Streams**: 실시간 데이터 수집
+- **IoT Core**: MQTT 브로커
+- **ECS**: TCP 연결 수신 및 REST API 수집 (특별한 경우만 API Gateway)
+  - **TCP 처리**: ECS에서 수신 → Kinesis Producer SDK → Kinesis Data Streams
+- **Lambda**: 센서 데이터 처리 중심 (컨버트, 분류, 변환)
+  - **런타임**: Node.js 20.x
+  - **모듈 시스템**: ESM (ES Module)
 
-### 사용자 경험
-- 부드러운 애니메이션 전환
-- 직관적인 네비게이션
-- 명확한 정보 구조
-- 모바일 최적화
+### 기초 정보 통합
+- **DMS (Database Migration Service)**: 분산된 RDBMS 통합 마이그레이션
+  - 지원 데이터베이스: MariaDB, MySQL, MSSQL, Oracle, PostgreSQL, MongoDB
+  - Full Load + CDC 방식
+- **CDC (Change Data Capture)**: 실시간 변경사항 동기화
+  - DMS CDC: RDBMS 트랜잭션 로그 기반 실시간 캡처 → Kinesis Data Streams
+  - MongoDB Change Streams: NoSQL 변경사항 스트리밍 → Kinesis Producer SDK → Kinesis Data Streams
+  - DynamoDB Streams: DynamoDB 변경사항 캡처 → Lambda Trigger → Kinesis Data Streams
+- **통합 Aurora PostgreSQL**: 모든 기초 정보를 통합 저장
+  - **CQRS 패턴**: Read/Write Endpoint 분리
 
-### 확장성
-- 컴포넌트 재사용 가능
-- 슬라이드/프레임 추가 용이
-- 테마 커스터마이징 가능
-- 다국어 지원 가능 (현재 한국어만)
+### 데이터 처리
+- **Lambda**: 서버리스 데이터 변환 및 처리 (Node.js 20.x, ESM 모듈)
+- **EventBridge**: 이벤트 기반 스케줄링
+- **Step Functions**: 워크플로우 오케스트레이션
 
----
+### 데이터 저장
+- **S3**: 원본 데이터 및 Iceberg 테이블 저장
+- **Apache Iceberg**: 테이블 형식 (ACID, 스키마 진화, 시간 여행)
+- **Amazon Athena**: SQL 쿼리 엔진
+- **Aurora PostgreSQL**: 통합 기초 정보, **일별 고객별 집계**, **계산식 적용 분석 데이터**, 알람 이력, 에러 알림 처리 서비스 정보
+  - **CQRS 패턴**: Read/Write Endpoint 분리
+    - **Write Endpoint**: Primary Aurora (데이터 변경)
+    - **Read Endpoint**: Read Replica (데이터 조회)
+  - **집계 데이터**: 일별 고객별 제품별 집계 (센서 데이터 + 기초 정보 조인 후 집계)
+  - **분석 데이터**: 고객별 제품별 일별 데이터에 계산식 적용 결과
+- **DocumentDB**: Hot 데이터 실시간 접근, **제품별 시간별/일별 집계** (MongoDB 호환 NoSQL, CQRS 패턴)
+  - **Write Endpoint**: Primary DocumentDB (데이터 변경)
+  - **Read Endpoint**: Read Replica (데이터 조회)
+  - **집계 데이터**: 제품별 시간별(1시간, 6시간) / 일별 집계 (센서 데이터에는 고객 정보 없음)
 
-## 🔍 개선 제안사항
+### 모니터링 및 알람
+- **EventBridge**: 이벤트 라우팅
+- **SNS**: 알림 발송
+- **CloudWatch**: 로그 및 메트릭 수집
 
-### 기능적 개선
-1. **다국어 지원**: i18n 라이브러리 추가
-2. **데이터 연동**: 실제 API 연동 (현재는 정적 데이터)
-3. **인터랙티브 차트**: 실시간 데이터 업데이트
-4. **인쇄 모드**: PDF 다운로드 기능
-5. **프레젠테이션 모드**: 전체화면 프레젠테이션 모드
+### 제어 및 IoT
+- **IoT Core**: 디바이스 관리 및 Shadow, MQTT 브로커
+- **IoT Device Shadow**: 디바이스 상태 동기화 및 원격 제어
 
-### 기술적 개선
-1. **성능 최적화**: 
-   - 코드 스플리팅 (현재 500KB+ 번들)
-   - 이미지 최적화
-   - 지연 로딩
-2. **테스팅**: Jest + React Testing Library
-3. **문서화**: Storybook 추가
-4. **CI/CD**: GitHub Actions 설정
+### AI/ML 분석
+- **Bedrock**: LLM 기반 분석 (이상 탐지, 근본 원인 분석 (RCA))
+- **SageMaker**: ML 모델 기반 예측 분석, 시계열 예측
 
-### UX 개선
-1. **키보드 단축키**: 슬라이드 네비게이션 단축키
-2. **접근성**: ARIA 레이블 강화
-3. **오프라인 지원**: Service Worker
-4. **프로그레스 저장**: 로컬 스토리지에 슬라이드 위치 저장
-
----
-
-## 📚 참고 자료
-
-- **디자인**: Figma 원본
-- **UI 컴포넌트**: [shadcn/ui](https://ui.shadcn.com/)
-- **아이콘**: [Lucide Icons](https://lucide.dev/)
-- **애니메이션**: [Motion](https://motion.dev/)
-
----
-
-## 🎯 프로젝트 목적 및 활용
-
-이 프로젝트는 **데이터 통합 플랫폼 기반 지능형 IoT 관리 솔루션**을 고객에게 제안하기 위한 시각화 도구입니다.
-
-### 주요 사용 사례
-1. **고객 제안 프레젠테이션**: Presentation Mode 활용
-2. **상세 설계 검토**: Dashboard Mode 활용
-3. **기술 검토 회의**: 아키텍처 및 구현 세부사항 검토
-4. **ROI 분석**: 비즈니스 임팩트 및 투자 대비 효과 분석
+### 인프라 및 보안
+- **VPC**: 격리된 네트워크 환경
+- **VPN Gateway**: Site-to-Site VPN
+- **PrivateLink**: 프라이빗 연결
+- **Cognito**: 사용자 인증 및 권한 관리
+- **IAM**: 역할 및 정책
+- **Secrets Manager**: 데이터베이스 연결 정보 등 시크릿 관리
+- **Terraform**: 인프라 코드화
 
 ---
 
-## 📅 프로젝트 현황
+## 🏗️ 시스템 아키텍처 (상세)
 
-- **버전**: 0.1.0
-- **상태**: 기본 기능 완성
-- **빌드**: 성공 (500KB+ 번들 경고 있음)
-- **개발 환경**: Vite + React + TypeScript
-- **배포**: 정적 파일 배포 가능 (build/ 디렉토리)
+### 4계층 아키텍처
+
+1. **데이터 수집 계층**
+   - 다중 프로토콜 지원: TCP (ECS), MQTT (IoT Core), REST API (ECS, 특별한 경우만 API Gateway)
+   - VPN 터널링을 통한 기존 시스템 연동
+   - Kinesis Data Streams를 통한 통합 수집
+
+2. **데이터 플랫폼 계층 (통합 데이터 플랫폼)**
+   - 3계층 데이터 레이어: Hot (DocumentDB, CQRS 패턴), Warm (Aurora PostgreSQL, CQRS 패턴), Cold (S3 + Iceberg + Athena)
+   - YAML 기반 데이터 변환 모듈 (Lambda)
+   - Data Contract 기반 품질 관리
+   - 센서 데이터 통합 및 기초 데이터 통합
+
+3. **분석 엔진 계층**
+   - AI/ML 기반 이상 탐지 (SageMaker, Bedrock)
+   - 제품별 룰셋 엔진 (Lambda, Aurora 기반)
+   - 근본 원인 분석 (RCA) 엔진 (Bedrock)
+
+4. **자동화 제어 계층**
+   - AWS IoT Device Shadow 기반 원격 제어
+   - OTA (Over-The-Air) 펌웨어 업데이트
+   - 자동 진단 및 대응 워크플로우 (Step Functions)
+
+---
+
+## 💼 서비스 제공 방식 (SaaS)
+
+### 설치 및 배포
+- **Terraform 기반 인프라**: 코드로 관리되는 인프라
+- **CI/CD 파이프라인**: CodePipeline, CodeBuild, CodeDeploy
+- **자동화된 배포**: Blue-Green, Canary 배포 전략
+- **롤백 지원**: 문제 발생 시 즉시 롤백
+
+### 기존 시스템 연동
+- **VPN 터널링**: Site-to-Site VPN을 통한 안전한 연동
+- **PrivateLink**: 프라이빗 연결을 통한 데이터 전송
+- **DMS/CDC**: 기존 데이터베이스와의 실시간 동기화
+
+### 필요한 리소스 및 시스템
+
+**네트워크 및 보안**:
+- VPC, Subnet, Internet Gateway, NAT Gateway
+- VPN Gateway, Customer Gateway, VPN Connection
+- Security Group, Network ACL, Route Table
+
+**게이트웨이 및 어댑터**:
+- ECS Service (TCP 수신 및 REST API 수신)
+- Network Load Balancer (TCP 로드 밸런싱)
+- Application Load Balancer (HTTP/HTTPS 로드 밸런싱)
+- IoT Core (MQTT 브로커)
+- API Gateway (특별한 경우만 사용)
+
+**기초 정보 통합 (DMS 및 CDC)**:
+- DMS Replication Instance
+- DMS Source/Target Endpoints
+- DMS Tasks
+- Lambda Functions (CDC 변환)
+- Kinesis Data Streams (CDC 변경사항)
+
+**데이터 스트림**:
+- Kinesis Data Streams
+- Kinesis Data Firehose
+- Kinesis Analytics
+
+**Lambda 함수**:
+- 컨버트 모듈 (Node.js 20.x, ESM)
+- 데이터 분류 (Node.js 20.x, ESM)
+- 표준화 변환 (Node.js 20.x, ESM)
+- CDC 변환 (Node.js 20.x, ESM)
+- 룰 엔진 (Node.js 20.x, ESM)
+- 자동 제어 (Node.js 20.x, ESM)
+- DLQ 처리 (Node.js 20.x, ESM)
+- 배치 처리 (Node.js 20.x, ESM)
+- **제품별 집계** (Node.js 20.x, ESM)
+  - EventBridge 스케줄러 트리거 (1시간/6시간/일 단위)
+  - DocumentDB에서 센서 데이터 조회하여 제품별 시간별/일별 집계
+  - 집계 결과를 DocumentDB에 저장
+- **고객별 집계** (Node.js 20.x, ESM)
+  - EventBridge 스케줄러 트리거 (일 단위)
+  - DocumentDB의 제품별 일별 집계 + Aurora 기초 정보 조인
+  - 고객별 제품별 일별 집계 생성 후 Aurora에 저장
+- **계산식 적용** (Node.js 20.x, ESM)
+  - 고객별 집계 완료 후 트리거
+  - Aurora에서 계산식 조회 (고객별/제품별)
+  - 고객별 제품별 일별 집계 데이터에 계산식 평가
+  - 계산 결과를 분석 데이터 테이블에 저장 (Aurora)
+
+**데이터 저장소**:
+- DocumentDB (Hot 데이터, MongoDB 호환 NoSQL, CQRS 패턴)
+  - Write Endpoint: Primary DocumentDB (데이터 변경)
+  - Read Endpoint: Read Replica (데이터 조회)
+  - **집계 데이터**: 제품별 시간별(1시간, 6시간) / 일별 집계
+    - 센서 데이터에는 고객 정보가 없으므로 제품별 집계만 수행
+- Aurora PostgreSQL (통합 기초 정보, **일별 고객별 집계**, **계산식 적용 분석 데이터**, 알람 이력, 에러 알림 처리 서비스 정보, CQRS 패턴)
+  - Write Endpoint: Primary Aurora (데이터 변경)
+  - Read Endpoint: Read Replica (데이터 조회)
+  - **집계 데이터**: 일별 고객별 제품별 집계
+    - DocumentDB의 제품별 일별 집계 + 기초 정보(deviceId → customerId) 조인 후 집계
+  - **분석 데이터**: 고객별 제품별 일별 데이터에 계산식 적용 결과
+    - 관리 화면에서 조회하여 표시
+- S3 (Raw/Standardized/Curated Layer)
+- S3 + Iceberg (Cold 데이터)
+
+**분석 및 AI/ML**:
+- Bedrock (LLM 기반 분석 - 이상 탐지, RCA)
+- SageMaker (ML 모델 기반 예측 분석, 시계열 예측)
+- Athena (SQL 쿼리)
+- Glue (ETL 처리 및 카탈로그 관리)
+
+**계산식 엔진**:
+- 계산식 등록 및 관리 시스템 (Aurora)
+  - 제품별/고객별/디바이스별 계산식 등록 및 버전 관리
+- Lambda Function (계산식 적용, Node.js 20.x, ESM)
+  - **적용 시점**: 고객별 제품별 일별 집계 데이터부터 적용
+  - **프로세스**: 집계 완료 후 트리거 → 계산식 조회 → 평가 → 분석 데이터 저장
+- 계산 결과 저장소 (분석 데이터 - Aurora)
+  - 고객별 제품별 일별 분석 데이터 테이블
+  - 관리 화면에서 조회하여 표시
+
+**오케스트레이션**:
+- EventBridge
+- Step Functions
+
+**모니터링 및 알림**:
+- CloudWatch
+- SNS
+- QuickSight
+
+**큐 및 메시징**:
+- SQS (Dead Letter Queue)
+
+**인증 및 보안**:
+- Cognito (사용자 인증 및 권한 관리)
+- IAM (역할 및 정책)
+- Secrets Manager (데이터베이스 연결 정보 등 시크릿 관리)
+- Parameter Store (설정 관리)
+
+**기타**:
+- CodePipeline, CodeBuild, CodeDeploy
+
+---
+
+## 🎯 핵심 차별화 포인트 (기술적 관점)
+
+### 1. 통합 데이터 플랫폼 중심 아키텍처
+- 센서 데이터와 기초 데이터를 단일 플랫폼으로 통합
+- 모든 기능이 통합 데이터 플랫폼 기반으로 동작
+- 확장 가능한 플랫폼 구조
+
+### 2. 실시간 통합 및 처리
+- 센서 데이터와 기초 데이터의 실시간 통합
+- CDC를 통한 실시간 동기화
+- 즉시 분석 가능한 통합 분석 데이터 제공
+
+### 3. CQRS 패턴 적용
+- DocumentDB와 Aurora 모두 CQRS 패턴 적용
+- Read/Write 분리로 성능 최적화 및 확장성 향상
+
+### 4. AI 기반 지능형 분석
+- AI/ML 기반 이상 탐지 및 예측 분석
+- 근본 원인 분석 (RCA)
+- False Positive 감소
+
+### 5. 자동화된 운영
+- 자동 대응 워크플로우
+- 원격 제어 및 OTA를 통한 자동 해결
+- 최소한의 인력으로 운영 가능
+
+### 6. 비용 최적화
+- 3계층 데이터 레이어를 통한 비용 최적화
+- Iceberg + Athena를 통한 쿼리 비용 절감
+- 서버리스 아키텍처로 운영비 절감
 
 ---
 
