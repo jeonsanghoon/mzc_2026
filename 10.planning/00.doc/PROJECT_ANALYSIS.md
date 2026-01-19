@@ -1,4 +1,8 @@
-# 기술 분석 문서
+# 기술 분석
+
+> **🔬 연구소 관점 문서**  
+> 본 문서는 기술 스택, 아키텍처, 구현 상세 등 **연구소 관점**에서 작성되었습니다.  
+> 서비스 가치 및 비즈니스 모델은 [서비스 개요 문서](./SERVICE_OVERVIEW.md)를 참고하세요. 문서
 
 ## 📋 문서 개요
 
@@ -18,6 +22,21 @@
 - **파일/이미지/로그**: S3 저장 + 메타데이터 관리
 - **마스터/기초정보**: DMS/CDC로 Aurora 통합
 - **알람/이력**: 룰 평가 결과 및 처리 이력 저장
+
+### 명확한 데이터 목표 (8개)
+
+> 상세는 [DESIGN_GUIDE.md](./DESIGN_GUIDE.md)·[SERVICE_OVERVIEW.md](./SERVICE_OVERVIEW.md) 참고.
+
+| # | 목표 | 기술적 대응 |
+|---|------|-------------|
+| 1 | 다채널 데이터 원활한 수집 | ECS·IoT Core, Kinesis, VPN 터널링 (TCP·MQTT·REST) |
+| 2 | 제품별 YAML 관리를 통한 데이터 통합 | Lambda 컨버트(YAML), Data Contract, 분류·라우팅 |
+| 3 | 알람 룰셋 등록에 따른 알람 자동화 | 룰 엔진, Aurora 룰셋, SNS 에스컬레이션 |
+| 4 | 알람 장비 원격제어·FoTA를 통한 정비 | Device Shadow, OTA/FoTA 서비스 |
+| 5 | AS 기사 알림 처리 | SNS·이메일·앱, 알람 이력(DocumentDB Warm) |
+| 6 | 연구소 분석 데이터 생성 | 집계 Lambda, Bedrock·SageMaker, Cold(Iceberg·Athena) |
+| 7 | 서비스 분석데이터 및 관련 서비스 데이터 관리 | Aurora 집계·기초정보, DocumentDB, 대시보드·리포트 |
+| 8 | 향후 AI·LLM 기반 자동화 | Bedrock LLM, SageMaker, 자동 대응 룰 고도화 |
 
 ### 데이터 유형별 저장소 매핑
 | 데이터 유형 | Hot (DocumentDB) | Warm (DocumentDB) | Warm (Aurora) | Cold (S3+Iceberg) |
@@ -44,8 +63,12 @@
 ##### 1. 센서 데이터 통합 (실시간 스트리밍 통합)
 
 **기술적 구현**:
+- **VPN 연결 (필수)**: 모든 데이터 수집은 **VPN 터널링을 통한 안전한 연결**이 필요합니다
+  - Site-to-Site VPN (IPSec 터널)을 통한 온프레미스 시스템과 AWS 간 연결
+  - VPC 내부 네트워크(Private Subnet)를 통한 사설 IP 통신으로 퍼블릭 노출 없이 데이터 수집
+  - 연동 대상: 기존 RDBMS, NoSQL, API 서버, 센서 시스템 등
 - **다중 프로토콜 지원**: TCP (ECS), MQTT (IoT Core), REST API (ECS, 특별한 경우만 API Gateway)
-- **VPN 터널링**: Site-to-Site VPN을 통한 기존 온프레미스 시스템과 AWS 간 안전한 연동
+  - 모든 프로토콜은 VPN 터널을 통해 안전하게 데이터를 수집
 - **실시간 스트리밍**: Kinesis Data Streams를 통한 실시간 데이터 통합 수집
 - **YAML 기반 변환**: Lambda Function (Node.js 20.x, ESM 모듈)을 통한 다양한 데이터 형식 변환
   - **지원 형식**: Hex Binary, JSON, CSV
@@ -66,8 +89,8 @@
   - `device_timestamp`: 디바이스에서 생성된 타임스탬프 (디바이스 측 시간)
   - `hub_timestamp`: 허브에서 수신/전달한 타임스탬프 (허브 측 시간)
   - `ingest_timestamp`: 플랫폼 수신 타임스탬프 (Kinesis 수신 시점, 자동 생성)
-- **토픽에서 추출**: MQTT 토픽에서 `hub_id`, `device_id` 추출
-- **원본 참조**: `rawRef` (프로토콜, 토픽, 원본 형식 등)
+- **토픽에서 추출**: MQTT 토픽에서 `hub_id`, `device_id` 추출하여 표준화된 텔레메트리 구조에 포함
+- **원본 데이터**: 원본 데이터(로우 데이터)는 별도로 저장되며, 표준화된 텔레메트리 데이터에는 원본 참조 정보를 포함하지 않음
 - **고객 정보 조인**: 집계 단계에서 `device_id` → `site_id` → `customer_id` 조인 수행
 
 **허브-차일드 디바이스 구조**:
@@ -122,6 +145,7 @@
 - **저장소**: DocumentDB (CQRS 패턴 적용)
   - **Write Endpoint**: Primary DocumentDB (데이터 변경 작업)
   - **Read Endpoint**: Read Replica (데이터 조회 작업)
+- **보관 기간**: 최근 10일 데이터 (10일 이후 자동 Warm/Cold 이동)
 - **용도**: 실시간 대시보드, 즉시 조회가 필요한 통합 데이터, **제품별 시간별/일별 집계**
 - **특징**: 빠른 읽기/쓰기 성능, 실시간 쿼리 지원, MongoDB 호환 NoSQL, Read/Write 분리로 성능 최적화
 - **데이터**: 
@@ -336,8 +360,11 @@
 ### 4계층 아키텍처
 
 1. **데이터 수집 계층**
+   - **VPN 연결 (필수)**: 모든 데이터 수집은 VPN 터널링을 통한 안전한 연결 필요
+     - Site-to-Site VPN (IPSec 터널)을 통한 온프레미스 시스템과 AWS 간 연결
+     - VPC 내부 네트워크(Private Subnet)를 통한 사설 IP 통신으로 퍼블릭 노출 없음
    - 다중 프로토콜 지원: TCP (ECS), MQTT (IoT Core), REST API (ECS, 특별한 경우만 API Gateway)
-   - VPN 터널링을 통한 기존 시스템 연동
+     - 모든 프로토콜은 VPN 터널을 통해 안전하게 데이터를 수집
    - Kinesis Data Streams를 통한 통합 수집
 
 2. **데이터 플랫폼 계층 (통합 데이터 플랫폼)**

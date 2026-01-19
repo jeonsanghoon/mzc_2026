@@ -89,11 +89,11 @@ export function DashboardApp() {
   const [activeFrame, setActiveFrame] = useState<FrameId>(() => {
     // 초기 상태 설정 시 해시 확인
     const hash = window.location.hash.slice(1);
-    if (hash.startsWith("dashboard/")) {
-      const frameId = hash.replace("dashboard/", "");
-      const frame = frames.find(f => f.id === frameId);
-      return frame ? (frameId as FrameId) : "problem";
-    }
+      if (hash.startsWith("solution/") || hash.startsWith("dashboard/")) {
+        const frameId = hash.replace("solution/", "").replace("dashboard/", "");
+        const frame = frames.find(f => f.id === frameId);
+        return frame ? (frameId as FrameId) : "problem";
+      }
     return "problem";
   });
 
@@ -103,16 +103,16 @@ export function DashboardApp() {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1);
       
-      if (hash.startsWith("dashboard/")) {
-        const frameId = hash.replace("dashboard/", "");
+      if (hash.startsWith("solution/") || hash.startsWith("dashboard/")) {
+        const frameId = hash.replace("solution/", "").replace("dashboard/", "");
         const frame = frames.find(f => f.id === frameId);
         if (frame && frameId !== activeFrame) {
           setActiveFrame(frameId as FrameId);
         }
-      } else if (hash === "dashboard") {
+      } else if (hash === "solution" || hash === "dashboard") {
         if (activeFrame !== "problem") {
           setActiveFrame("problem");
-          window.location.hash = "#dashboard/problem";
+          window.location.hash = "#solution/problem";
         }
       }
     };
@@ -306,7 +306,7 @@ export function DashboardApp() {
                 통합 데이터 플랫폼 기반 7단계 아키텍처
               </CardTitle>
               <CardDescription className="text-sm">
-                데이터 수집 → 표준화 → 통합 → 모니터링 → 제어 → 분석 → 확장
+                데이터 수집 → 표준화 → 통합 → 모니터링 → 룰 기반 알람(즉시) + AI 분석(선택적) → 자동 제어/OTA → 확장
               </CardDescription>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
@@ -323,7 +323,7 @@ export function DashboardApp() {
                           type="button"
                           onClick={() => {
                             setActiveFrame(frame.id as any);
-                            window.location.hash = `#dashboard/${frame.id}`;
+                            window.location.hash = `#solution/${frame.id}`;
                           }}
                           aria-pressed={isActive}
                           aria-current={

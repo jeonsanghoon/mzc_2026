@@ -119,10 +119,10 @@ export function BenefitsSlide() {
         className="text-center mb-4 sm:mb-6 md:mb-8"
       >
         <h2 className="text-2xl sm:text-3xl md:text-4xl mb-3 sm:mb-4 bg-gradient-to-r from-emerald-400 via-green-400 to-cyan-400 bg-clip-text text-transparent px-2 font-bold break-words">
-          4. 모니터링 · 제어 · 분석
+          4. 모니터링 · 분석 · 제어
         </h2>
         <p className="text-base sm:text-lg md:text-xl text-slate-100 max-w-3xl mx-auto px-4 leading-relaxed font-medium break-words">
-          실시간 모니터링, 자동 제어, AI 분석이 만드는 운영 혁신
+          실시간 모니터링, AI 분석, 자동 제어가 만드는 운영 혁신
         </p>
       </motion.div>
 

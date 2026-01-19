@@ -1,4 +1,8 @@
-# 프로세스 플로우 다이어그램
+# 프로세스 플로우
+
+> **🔄 서비스 관점 & 🔬 연구소 관점 문서**  
+> 본 문서는 전체 데이터 흐름과 프로세스를 **서비스 관점**과 **연구소 관점**에서 설명합니다.  
+> 비즈니스 가치는 [서비스 개요 문서](./SERVICE_OVERVIEW.md)를, 기술 상세는 [기술 분석 문서](./PROJECT_ANALYSIS.md)를 참고하세요. 다이어그램
 
 ## 📖 문서 개요
 
@@ -23,6 +27,19 @@
 - **파일/이미지/로그**: 업로드 파일 및 메타데이터
 - **마스터/기초정보**: 고객/사이트/디바이스
 - **알람/이력**: 알람 이벤트 및 처리 이력
+
+#### 명확한 데이터 목표 (8개)
+
+> 상세는 [DESIGN_GUIDE.md](./DESIGN_GUIDE.md)·[SERVICE_OVERVIEW.md](./SERVICE_OVERVIEW.md) 참고.
+
+1. **다채널 데이터 원활한 수집** — 기초데이터와 IoT 센서 데이터를 TCP·MQTT·REST 등 여러 채널에서 끊김 없이 수집  
+2. **제품별 YAML 관리를 통한 데이터 통합** — 제품·형식별 YAML 스펙으로 변환·표준화하여 단일 플랫폼에서 통합  
+3. **알람 룰셋 등록에 따른 알람 자동화** — 제품별 룰셋 등록 시 룰 엔진으로 알람 자동 발생·분류·에스컬레이션 수행  
+4. **알람 장비 원격제어·FoTA를 통한 정비** — Device Shadow·FoTA로 알람 장비 원격 제어 및 정비  
+5. **AS 기사 알림 처리** — 알람·에스컬레이션에 따른 AS 기사 알림·배차·처리 이력 관리  
+6. **연구소 분석 데이터 생성** — 연구소 관점의 집계·이상탐지·RCA·예측 등 분석 데이터 생성·활용  
+7. **서비스 분석데이터 및 관련 서비스 데이터 관리** — 서비스 관점 분석데이터와 고객·제품별 서비스 데이터의 저장·조회·관리  
+8. **향후 AI·LLM 기반 자동화** — AI 이상탐지·예측, LLM 분석·보고 자동화, 자동 대응 룰 고도화 등으로 확장  
 
 #### 데이터 유형별 저장소 매핑
 - **Hot (DocumentDB)**: 실시간 센서/알람, 최신 상태
@@ -174,6 +191,7 @@
 - **저장소**: DocumentDB (CQRS 패턴 적용)
   - **Write Endpoint**: Primary DocumentDB (데이터 변경 작업)
   - **Read Endpoint**: Read Replica (데이터 조회 작업)
+- **보관 기간**: 최근 10일 데이터 (10일 이후 자동 Warm/Cold 이동)
 - **용도**: 실시간 대시보드, 즉시 조회가 필요한 통합 데이터
 - **특징**: 빠른 읽기/쓰기 성능, 실시간 쿼리 지원, MongoDB 호환 NoSQL, Read/Write 분리로 성능 최적화
 - **데이터**: 센서 데이터 + 기초 정보가 조인된 실시간 데이터
@@ -337,7 +355,9 @@ flowchart TD
 
 ## 2-1. 실시간 데이터 수집 및 다중 프로토콜 통합 프로세스
 
-실시간 데이터 수집의 상세 프로세스: 프로토콜별 처리, YAML 변환, 데이터 분류 및 라우팅
+실시간 데이터 수집의 상세 프로세스: **VPN 터널링을 통한 안전한 연결** → 프로토콜별 처리 → YAML 변환 → 데이터 분류 및 라우팅
+
+**중요**: 모든 데이터 수집은 **VPN 터널링(Site-to-Site VPN)**을 통한 안전한 연결이 필수입니다. 온프레미스 시스템과 AWS 간 IPSec 터널을 통해 VPC 내부 네트워크(Private Subnet)로 데이터를 안전하게 수집합니다.
 
 ```mermaid
 flowchart TD
@@ -374,7 +394,7 @@ flowchart TD
     subgraph 프로토콜어댑터["프로토콜 어댑터 계층 (Lambda 중심)"]
         TCPAdapter[TCP 어댑터<br/>ECS → Kinesis Producer SDK<br/>→ Kinesis Data Streams]
         MQTTAdapter[MQTT 어댑터<br/>IoT Core Rule → Kinesis]
-        APIAdapter[API 어댑터<br/>ECS/Lambda<br/>+ Kinesis Producer SDK]
+        APIAdapter[REST 어댑터<br/>ECS/Lambda<br/>+ Kinesis Producer SDK]
     end
     
     subgraph 데이터형식["데이터 형식"]
@@ -584,7 +604,8 @@ $aws/things/{thingName}/shadow/get
 
 **토픽에서 디바이스 정보 추출**:
 - Lambda 컨버트 모듈이 MQTT 토픽을 파싱하여 `hub_id`, `device_id`, `childDeviceId` 추출
-- 토픽 정보는 `rawRef.topic` 필드에 저장
+- 추출된 정보는 표준화된 텔레메트리 구조에 직접 포함
+- 원본 데이터(로우 데이터)는 별도로 저장되며, 표준화된 데이터에는 원본 참조 정보를 포함하지 않음
 - 단독 디바이스인 경우 `hub_id`와 `childDeviceId`는 `null` 또는 생략
 
 **타임스탬프 관리**:
@@ -806,8 +827,9 @@ conversion:
 - `productId`: 제품 타입 식별자 (필수)
 - `childDeviceId`: 차일드 디바이스 ID (허브-차일드 구조인 경우, 토픽에서 추출)
 - `metrics`: 측정값 (제품별로 다름)
-- `rawRef`: 원본 데이터 참조 (프로토콜, 토픽, 원본 형식 등)
 - `ingest_timestamp`: 플랫폼 수신 타임스탬프 (ISO 8601, Kinesis 수신 시점)
+
+> **참고**: 원본 데이터(로우 데이터)는 별도로 저장되며, 표준화된 텔레메트리 데이터에는 원본 참조 정보(`rawRef`)를 포함하지 않습니다.
 
 **고객 정보 조인**:
 - 센서 데이터의 `device_id`를 기초 데이터(Aurora)의 `devices` 테이블과 조인
@@ -1151,21 +1173,22 @@ CREATE TABLE analysis_data (
 
 ### 개요
 
-지능형 모니터링 시스템은 제품 타입별로 독립적인 알람 룰셋을 적용하여 각 제품의 특성에 맞는 모니터링을 수행합니다. 이를 통해 오탐을 줄이고 정확한 이상 감지를 가능하게 합니다.
+지능형 모니터링 시스템은 제품 타입별로 독립적인 알람 룰셋을 적용하여 각 제품의 특성에 맞는 모니터링을 수행합니다. **룰 기반 알람은 AI 분석 없이도 즉시 실행 가능**하며, AI 분석은 선택적으로 추가적인 알람을 제공합니다.
 
 ### 프로세스 특징
 
 - **제품별 룰셋**: 각 제품 타입별로 독립적인 알람 규칙 정의 및 적용
 - **동적 로드**: Aurora에 저장된 룰셋을 Lambda Function에서 동적으로 로드
 - **4가지 룰 타입**: Threshold, Anomaly, Correlation, Predictive 룰 지원
-- **AI 기반 개선**: Bedrock을 통한 False Positive 감소 및 룰셋 최적화
+- **AI 분석 없이 가능**: 룰 기반 알람은 AI 분석 없이도 즉시 실행 가능
+- **AI 기반 개선 (선택적)**: Bedrock을 통한 False Positive 감소 및 룰셋 최적화
 
 ### 룰 엔진 타입
 
-1. **Threshold 룰**: 임계값 기반 알람 (예: 온도 > 80도)
-2. **Anomaly 룰**: 이상 패턴 감지 (Bedrock 기반)
-3. **Correlation 룰**: 다중 데이터 소스 상관관계 분석
-4. **Predictive 룰**: 예측 기반 사전 알람 (SageMaker 기반)
+1. **Threshold 룰**: 임계값 기반 알람 (예: 온도 > 80도) - **AI 분석 없이 즉시 실행 가능**
+2. **Anomaly 룰**: 이상 패턴 감지 (Bedrock 기반) - AI 분석 필요
+3. **Correlation 룰**: 다중 데이터 소스 상관관계 분석 - **AI 분석 없이도 가능**
+4. **Predictive 룰**: 예측 기반 사전 알람 (SageMaker 기반) - AI 분석 필요
 
 ### 제품별 룰셋 관리
 
@@ -1314,13 +1337,13 @@ sequenceDiagram
     participant Device as IoT 디바이스
     participant DB as 데이터베이스
     
-    Server->>Shadow: desired 상태 업데이트<br/>$aws/things/{thingName}/shadow/update
-    Note over Shadow: {desired: {fan_speed: 3, target_temp: 23}}
+    Server->>Shadow: desired 상태 업데이트<br/>$aws/things/thingName/shadow/update
+    Note over Shadow: desired 상태 업데이트<br/>fan_speed: 3, target_temp: 23
     
     Shadow->>Device: MQTT 메시지 전달<br/>(디바이스 온라인 시)
     Note over Device: 명령 수신 및 실행
     
-    Device->>Shadow: reported 상태 업데이트<br/>{reported: {fan_speed: 3, ack: true}}
+    Device->>Shadow: reported 상태 업데이트<br/>fan_speed: 3, ack: true
     
     Shadow->>Server: delta 이벤트 전달<br/>(상태 변경 알림)
     
@@ -1328,7 +1351,7 @@ sequenceDiagram
     
     Server->>Shadow: 상태 확인<br/>shadow/get
     
-    Shadow->>Server: 현재 상태 반환<br/>{desired, reported, delta}
+    Shadow->>Server: 현재 상태 반환<br/>desired, reported, delta
     
     Server->>DB: 이벤트 기록<br/>event 테이블
     
@@ -1583,7 +1606,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     subgraph 수집["1. 데이터 수집"]
-        DataSource[IoT/센서/측정 데이터<br/>TCP/MQTT/API]
+        DataSource[IoT/센서/측정 데이터<br/>TCP·MQTT·REST]
         DataSource --> Kinesis[Kinesis Data Streams<br/>통합 수집]
         Kinesis --> Convert[컨버트 모듈<br/>YAML 기반 변환]
         Convert --> Standard[표준 JSON 형식]
@@ -1806,21 +1829,21 @@ flowchart TD
         VPCNetwork[VPC 네트워크]
     end
     
-    subgraph 수집["데이터 수집"]
-        IoT[IoT/센서<br/>TCP/MQTT/API]
+    subgraph 수집["데이터 수집 (TCP·MQTT·REST)"]
+        IoT[IoT/센서<br/>TCP·MQTT·REST]
         Master[기초 정보<br/>RDBMS/NoSQL]
     end
     
-    subgraph 게이트웨이["게이트웨이"]
-        TCPGW[ECS Gateway]
-        ECSService[ECS 서비스<br/>REST API<br/>특별한 경우만 API Gateway]
-        MQTTGW[IoT Core]
+    subgraph 게이트웨이["게이트웨이 (TCP·MQTT·REST)"]
+        TCPGW[ECS Gateway<br/>TCP 수신]
+        ECSService[ECS 서비스<br/>REST API 수신<br/>특별한 경우만 API Gateway]
+        MQTTGW[IoT Core<br/>MQTT 브로커]
     end
     
     subgraph 어댑터["프로토콜 어댑터"]
         TCPAdp[TCP 어댑터]
         MQTTAdp[MQTT 어댑터]
-        APIAdp[API 어댑터]
+        APIAdp[REST 어댑터]
     end
     
     subgraph 플랫폼["데이터 플랫폼"]
@@ -1962,7 +1985,7 @@ flowchart TD
 2. **Raw Layer**: 원본 데이터 보존 (S3 Standard)
 3. **Standardized Layer**: 표준화된 데이터 (S3 Standard)
 4. **Curated Layer**: 가공된 통합 데이터 (S3 Standard)
-5. **Hot Layer**: 실시간 접근 데이터 (DocumentDB, 최근 7일)
+5. **Hot Layer**: 실시간 접근 데이터 (DocumentDB, 최근 10일 보관)
 6. **Cold Layer**: 장기 보관 데이터 (S3 + Iceberg, 90일 이후)
 7. **삭제**: 7년 후 데이터 삭제 또는 Iceberg 파티션 삭제
 
@@ -1981,7 +2004,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     subgraph 원데이터["원데이터 생명주기"]
-        Ingest[원데이터 수집<br/>IoT/측정/이벤트] --> Raw[(Raw Layer<br/>S3 Standard<br/>원데이터)]
+        Ingest[원데이터 수집<br/>IoT/측정/이벤트<br/>TCP·MQTT·REST] --> Raw[(Raw Layer<br/>S3 Standard<br/>원데이터)]
         
         Raw --> Process{처리 우선순위}
         
@@ -1998,7 +2021,7 @@ flowchart TD
         
         Curated --> Tier{접근 패턴<br/>분석}
         
-        Tier -->|자주 접근<br/>1-7일| HotWrite[(Hot Layer<br/>DocumentDB Write<br/>CQRS 패턴)]
+        Tier -->|자주 접근<br/>1-10일| HotWrite[(Hot Layer<br/>DocumentDB Write<br/>CQRS 패턴)]
         HotWrite -.->|복제| HotRead[(DocumentDB Read<br/>Read Replica)]
         Tier -->|거의 접근 안함<br/>90일 이상| Cold[(Cold Layer<br/>S3 + Iceberg<br/>원데이터 테이블)]
         
@@ -2059,7 +2082,7 @@ flowchart TD
 
 ### 티어링 전략
 
-- **Hot Layer (DocumentDB)**: 최근 7일 데이터, 실시간 대시보드용
+- **Hot Layer (DocumentDB)**: 최근 10일 데이터 보관, 실시간 대시보드용 (10일 후 자동 Warm/Cold 이동)
 - **Warm Layer (Aurora)**: 기초 정보 상시 유지, 집계 결과 3년 보관
 - **Cold Layer (S3 + Iceberg)**: 90일 이후 데이터, 히스토리 분석용
 
@@ -2165,13 +2188,14 @@ flowchart TD
 ## 주요 특징 요약
 
 ### 실시간 데이터 수집 및 통합
-- **다중 프로토콜 지원**: TCP, MQTT, REST API 등 다양한 프로토콜 통합 (파일은 별도 배치 처리)
-- **VPN 터널링 (기존 시스템 연동)**:
+- **VPN 연결 (필수)**: 모든 데이터 수집은 **VPN 터널링을 통한 안전한 연결**이 필요합니다
   - **목적**: 이전 시스템과 AWS 연동을 위한 보안 통신
   - **구성**: AWS VPN Gateway (Site-to-Site VPN, IPSec 터널)
   - **네트워크**: VPC 내부 네트워크 (Private Subnet)를 통한 내부망 통신
   - **보안**: 사설 IP 통신으로 퍼블릭 노출 없이 기존 시스템과 통신
   - **연동 대상**: 기존 RDBMS, NoSQL, API 서버, 센서 시스템 등
+- **다중 프로토콜 지원**: TCP, MQTT, REST API 등 다양한 프로토콜 통합 (파일은 별도 배치 처리)
+  - 모든 프로토콜은 VPN 터널을 통해 안전하게 데이터를 수집
 - **인프라 게이트웨이**:
   - **TCP**: ECS 서비스 필요 (TCP 포트 리스닝을 위한 Container Service)
   - **MQTT**: AWS IoT Core (관리형 MQTT 브로커)
@@ -2222,6 +2246,6 @@ flowchart TD
 
 ---
 
-> **참고**: 서비스 설치 및 배포 프로세스, 웹 애플리케이션 사용 방법은 [README.md](./README.md)를 참고하세요.
+> **참고**: 웹 애플리케이션 접속 및 이용 방법은 [README.md](./README.md)를 참고하세요. (설치·배포는 별도 운영 문서)
 
 **최종 업데이트**: 2026년 3월

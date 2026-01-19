@@ -2,12 +2,15 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
-import { FileText, BookOpen, GitBranch, ChevronRight, Play, Code2, ZoomIn, ZoomOut, Maximize2, RotateCcw, X } from "lucide-react";
+import { Input } from "../../components/ui/input";
+import { FileText, BookOpen, GitBranch, ChevronRight, Play, Code2, ZoomIn, ZoomOut, Maximize2, RotateCcw, X, Expand, Target, Flag } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import ReactMarkdown from "react-markdown";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 import mermaid from "mermaid";
+
+type Perspective = "service" | "lab" | "customer" | "all";
 
 const docFiles = [
   {
@@ -17,6 +20,7 @@ const docFiles = [
     icon: BookOpen,
     color: "text-slate-700",
     file: "DESIGN_GUIDE.md",
+    perspectives: ["service", "lab", "customer"] as Perspective[],
   },
   {
     id: "service-overview",
@@ -25,6 +29,7 @@ const docFiles = [
     icon: FileText,
     color: "text-blue-600",
     file: "SERVICE_OVERVIEW.md",
+    perspectives: ["service", "customer"] as Perspective[],
   },
   {
     id: "process-flow",
@@ -33,6 +38,7 @@ const docFiles = [
     icon: GitBranch,
     color: "text-green-600",
     file: "PROCESS_FLOW.md",
+    perspectives: ["lab", "service"] as Perspective[],
   },
   {
     id: "project-analysis",
@@ -41,14 +47,16 @@ const docFiles = [
     icon: BookOpen,
     color: "text-purple-600",
     file: "PROJECT_ANALYSIS.md",
+    perspectives: ["lab"] as Perspective[],
   },
   {
     id: "readme",
     title: "4. 웹 애플리케이션 가이드",
-    description: "🌐 웹 앱: 프로젝트 구조, 설치 방법, 3가지 모드 사용법 (프레젠테이션/대시보드/문서)",
+    description: "🌐 서비스 관점: 고객이 사용하는 웹 화면(프레젠테이션/대시보드/설계 문서), 접속·이용 방법",
     icon: FileText,
     color: "text-orange-600",
     file: "README.md",
+    perspectives: ["service", "customer"] as Perspective[],
   },
 ];
 
@@ -104,7 +112,7 @@ function ProjectStructureDiagram() {
           {/* 3가지 모드 */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-green-500 text-white px-6 py-4 rounded-lg text-center font-semibold hover:bg-green-600 transition-colors">
-              대시보드 모드
+              솔루션 상세 모드
             </div>
             <div className="bg-orange-500 text-white px-6 py-4 rounded-lg text-center font-semibold hover:bg-orange-600 transition-colors">
               프레젠테이션 모드
@@ -116,12 +124,12 @@ function ProjectStructureDiagram() {
         </CardContent>
       </Card>
 
-      {/* 섹션 3: 대시보드 Frame 및 프레젠테이션 Slide */}
+      {/* 섹션 3: 솔루션 상세 Frame 및 프레젠테이션 Slide */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 대시보드 Frame */}
+        {/* 솔루션 상세 Frame */}
         <Card className="bg-green-50 border-2 border-green-300">
           <CardHeader>
-            <CardTitle className="text-lg">대시보드 모드 - 7개 Frame</CardTitle>
+            <CardTitle className="text-lg">솔루션 상세 모드 - 7개 Frame</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -250,10 +258,20 @@ function MermaidDiagram({ diagram }: { diagram: string }) {
   const [svgContent, setSvgContent] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [isRendering, setIsRendering] = useState(false);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(1.0); // 기본 100% 줌으로 설정
   const [fullscreenZoom, setFullscreenZoom] = useState(1);
   const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
   const [originalViewBox, setOriginalViewBox] = useState<string>("");
+  const [zoomInput, setZoomInput] = useState<string>("100"); // 줌 입력 필드 값
+  const [fullscreenZoomInput, setFullscreenZoomInput] = useState<string>("100"); // 전체화면 줌 입력 필드 값
+  // 줌 값이 변경될 때 입력 필드 업데이트
+  useEffect(() => {
+    setZoomInput(Math.round(zoom * 100).toString());
+  }, [zoom]);
+  
+  useEffect(() => {
+    setFullscreenZoomInput(Math.round(fullscreenZoom * 100).toString());
+  }, [fullscreenZoom]);
   
   // 드래그 상태
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -262,9 +280,10 @@ function MermaidDiagram({ diagram }: { diagram: string }) {
   const dragStateRef = useRef({
     isDragging: false,
     isFullscreen: false,
-    startX: 0,
-    startY: 0,
-    zoom: 1,
+    startClientX: 0,
+    startClientY: 0,
+    startPosX: 0,
+    startPosY: 0,
   });
 
   useEffect(() => {
@@ -273,7 +292,7 @@ function MermaidDiagram({ diagram }: { diagram: string }) {
     setIsRendering(true);
     setError("");
     setSvgContent("");
-    setZoom(1);
+    setZoom(1.0); // 기본 100% 줌으로 설정
     setFullscreenZoom(1);
     setIsFullscreenOpen(false);
     setPosition({ x: 0, y: 0 });
@@ -293,25 +312,62 @@ function MermaidDiagram({ diagram }: { diagram: string }) {
           throw new Error("Mermaid 라이브러리가 로드되지 않았습니다.");
         }
 
-        // "프로젝트 구성" 다이어그램의 경우 특별한 설정 적용
-        if (isProjectStructure) {
-          // 세로 배치를 위한 설정
-          mermaid.initialize({
-            startOnLoad: false,
-            theme: "default",
-            securityLevel: "loose",
-            flowchart: {
-              useMaxWidth: false,
-              htmlLabels: true,
-              curve: "basis",
-              nodeSpacing: 100,
-              rankSpacing: 150,
-              padding: 60,
-              defaultRenderer: "dagre-wrapper",
-              diagramPadding: 40,
-            },
-          });
-        }
+        // 큰 흐름 다이어그램인지 확인
+        const isLargeFlow = diagram.trim().includes("큰 흐름") || 
+                           diagram.trim().includes("End-to-End") ||
+                           diagram.trim().includes("end-to-end") ||
+                           diagram.trim().includes("전체 설계 흐름");
+
+        // 모든 다이어그램에 반응형 설정 적용
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: "default",
+          securityLevel: "loose",
+          flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: "basis",
+            // 큰 흐름 다이어그램은 크기를 줄임
+            nodeSpacing: isLargeFlow ? 30 : (isProjectStructure ? 80 : 50),
+            rankSpacing: isLargeFlow ? 50 : (isProjectStructure ? 100 : 80),
+            padding: isLargeFlow ? 10 : (isProjectStructure ? 40 : 20),
+            defaultRenderer: "dagre-wrapper",
+            diagramPadding: isLargeFlow ? 5 : (isProjectStructure ? 30 : 10),
+          },
+          themeVariables: {
+            // 배경·서브그래프 (알록달록 기초)
+            mainBkg: "#ffffff",
+            secondBkg: "#e9d5ff",
+            tertiaryBkg: "#fce7f3",
+            // 텍스트
+            primaryTextColor: "#1e293b",
+            secondaryTextColor: "#334155",
+            textColor: "#1e293b",
+            // 노드 채우기 (명분별 다양하게)
+            primaryColor: "#dbeafe",
+            secondaryColor: "#dcfce7",
+            tertiaryColor: "#ffedd5",
+            // 노드 테두리 (도형 경계 선명)
+            primaryBorderColor: "#3b82f6",
+            secondaryBorderColor: "#22c55e",
+            tertiaryBorderColor: "#f97316",
+            // 화살표/연결선
+            lineColor: "#475569",
+            arrowheadColor: "#475569",
+            noteBorderColor: "#64748b",
+            actorBorder: "#475569",
+            actorLineColor: "#475569",
+            labelBoxBorderColor: "#64748b",
+            activationBorderColor: "#3b82f6",
+            doneBorderColor: "#22c55e",
+            activeBorderColor: "#f97316",
+            activeTaskBorderColor: "#f97316",
+            doneTaskBorderColor: "#22c55e",
+            critBorderColor: "#dc2626",
+            todayLineColor: "#475569",
+            gridColor: "#cbd5e1",
+          },
+        });
 
         // render API 사용
         const result = await mermaid.render(uniqueId, diagramCode);
@@ -329,6 +385,66 @@ function MermaidDiagram({ diagram }: { diagram: string }) {
           throw new Error("SVG 파싱 실패");
         }
         
+        // 즉시 모든 rect 요소를 확인하고 배경을 흰색으로 변경
+        const immediateRects = svgElement.querySelectorAll('rect');
+        immediateRects.forEach((rect: Element) => {
+          const r = rect as SVGRectElement;
+          const fill = r.getAttribute('fill');
+          const style = r.getAttribute('style');
+          
+          // fill 속성이 있으면 무조건 확인
+          if (fill && fill !== 'none' && fill !== 'transparent') {
+            // 파란색 계열이거나 어두운 색이면 흰색으로 변경
+            const fillLower = fill.toLowerCase();
+            if (fillLower.includes('#00') || fillLower.includes('rgb(0') || fillLower.includes('rgb(')) {
+              // RGB 값 확인
+              let isDark = false;
+              if (fillLower.startsWith('#')) {
+                const hex = fillLower.replace('#', '');
+                if (hex.length === 6) {
+                  const r = parseInt(hex.substr(0, 2), 16);
+                  const g = parseInt(hex.substr(2, 2), 16);
+                  const b = parseInt(hex.substr(4, 2), 16);
+                  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                  isDark = brightness < 120;
+                }
+              } else {
+                const rgbMatch = fillLower.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+                if (rgbMatch) {
+                  const r = parseInt(rgbMatch[1]);
+                  const g = parseInt(rgbMatch[2]);
+                  const b = parseInt(rgbMatch[3]);
+                  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                  isDark = brightness < 120;
+                }
+              }
+              
+              if (isDark) {
+                r.setAttribute('fill', '#ffffff');
+              }
+            }
+          }
+          
+          // style 속성도 확인
+          if (style && style.includes('fill')) {
+            const fillMatch = style.match(/fill:\s*([^;]+)/i);
+            if (fillMatch) {
+              const fillValue = fillMatch[1].trim().toLowerCase();
+              if (fillValue.includes('#00') || fillValue.includes('rgb(0')) {
+                let newStyle = style.replace(/fill:\s*[^;]+/gi, 'fill:#ffffff');
+                r.setAttribute('style', newStyle);
+                r.setAttribute('fill', '#ffffff');
+              }
+            }
+          }
+        });
+        
+        // 좌우폭 넓은 다이어그램: SVG에도 최대 1200px 적용 (전체 파이프라인 등)
+        const isWideFromContent = diagramCode.includes("AWS 클라우드") ||
+          diagramCode.includes("전체 데이터 파이프라인") || diagramCode.includes("전체 파이프라인 구성도") ||
+          diagramCode.includes("전체 파이프라인") ||
+          (diagramCode.includes("기존시스템") && diagramCode.includes("게이트웨이"));
+
         // viewBox 저장 (원본 크기 보존)
         const viewBox = svgElement.getAttribute("viewBox");
         if (viewBox) {
@@ -420,8 +536,9 @@ function MermaidDiagram({ diagram }: { diagram: string }) {
                 svgElement.style.maxWidth = "600px";
                 svgElement.style.margin = "0 auto";
               } else {
-                // 일반 다이어그램: 기존 설정 유지
-                const maxWidth = 800;
+                // 일반 다이어그램: 좌우폭 넓으면 1200px, 아니면 800px
+                const isWideByRatio = width > height * 1.2;
+                const maxWidth = (isWideFromContent || isWideByRatio) ? 1200 : 800;
                 const baseScale = 1.2;
                 
                 let scale = baseScale;
@@ -449,13 +566,294 @@ function MermaidDiagram({ diagram }: { diagram: string }) {
             svgElement.style.maxWidth = "600px";
             svgElement.style.margin = "0 auto";
           } else {
+            const maxWidth = isWideFromContent ? 1200 : 800;
             svgElement.style.width = "100%";
             svgElement.style.height = "auto";
-            svgElement.style.maxWidth = "800px";
+            svgElement.style.maxWidth = `${maxWidth}px`;
             svgElement.style.margin = "0 auto";
           }
         }
         
+        // SVG 배경을 흰색으로 강제 설정
+        svgElement.style.backgroundColor = "#ffffff";
+        svgElement.style.background = "#ffffff";
+        svgElement.setAttribute('style', `${svgElement.getAttribute('style') || ''}; background-color: #ffffff; background: #ffffff;`);
+        
+        // 어두운 색상을 감지하는 함수 (검은색, 어두운 파란색 등 모든 어두운 색상)
+        const isDarkColor = (color: string): boolean => {
+          if (!color || color === 'none' || color === 'transparent') return false;
+          const normalized = color.toLowerCase().trim();
+          
+          // 명시적인 검은색/어두운 색상
+          if (normalized === 'black' || normalized === '#000' || normalized === '#000000' || 
+              normalized === 'rgb(0,0,0)' || normalized === 'rgb(0, 0, 0)') {
+            return true;
+          }
+          
+          // 어두운 파란색 계열 (#001xxx ~ #004xxx, #00a ~ #00f 등)
+          if (normalized.startsWith('#') && normalized.length >= 4) {
+            // #001234 형태
+            if (normalized.length === 7) {
+              const r = parseInt(normalized.substr(1, 2), 16);
+              const g = parseInt(normalized.substr(3, 2), 16);
+              const b = parseInt(normalized.substr(5, 2), 16);
+              const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+              return brightness < 90; // 밝기 90 미만만 어두운 색(테두리 등 명확한 색 보존)
+            }
+            // #001 형태 (짧은 형식)
+            if (normalized.length === 4) {
+              const first = normalized[1];
+              if (first === '0' || first === '1' || first === '2' || first === '3' || first === '4') {
+                return true;
+              }
+            }
+          }
+          
+          // rgb/rgba 값 파싱
+          const rgbMatch = normalized.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
+          if (rgbMatch) {
+            const r = parseInt(rgbMatch[1]);
+            const g = parseInt(rgbMatch[2]);
+            const b = parseInt(rgbMatch[3]);
+            const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+            return brightness < 90;
+          }
+          
+          return false;
+        };
+        
+        // SVG 내부의 모든 어두운 배경 요소만 흰색으로 변경 (화살표는 제외)
+        const allElements = svgElement.querySelectorAll('*');
+        allElements.forEach((element: Element) => {
+          const svgEl = element as SVGElement;
+          const tagName = svgEl.tagName.toLowerCase();
+          const fill = svgEl.getAttribute('fill');
+          const stroke = svgEl.getAttribute('stroke');
+          const strokeWidth = svgEl.getAttribute('stroke-width');
+          const style = svgEl.getAttribute('style');
+          
+          // 화살표/선 요소는 제외 (path, line, polyline, polygon 등)
+          const isArrowOrLine = tagName === 'path' || tagName === 'line' || 
+                                 tagName === 'polyline' || tagName === 'polygon' ||
+                                 svgEl.classList.contains('edge') || 
+                                 svgEl.classList.contains('edgePath') ||
+                                 svgEl.getAttribute('class')?.includes('edge');
+          
+          // fill 속성이 어두운 색상인 경우 흰색으로 변경 (배경만)
+          if (fill && isDarkColor(fill) && !isArrowOrLine) {
+            // rect 요소이거나 배경으로 사용되는 경우만
+            if (tagName === 'rect' || tagName === 'circle' || tagName === 'ellipse') {
+              svgEl.setAttribute('fill', '#ffffff');
+            }
+          }
+          
+          // stroke는 화살표/선이 아닌 경우에만 처리
+          if (stroke && isDarkColor(stroke) && !isArrowOrLine) {
+            // 노드 테두리는 회색으로 변경
+            if (tagName === 'rect' || tagName === 'circle' || tagName === 'ellipse' || tagName === 'polygon') {
+              svgEl.setAttribute('stroke', '#dee2e6');
+            }
+          }
+          
+          // stroke-width가 너무 두꺼운 경우 줄이기 (4 이상이면 1 또는 0.5로)
+          if (strokeWidth) {
+            const width = parseFloat(strokeWidth);
+            if (width > 3) {
+              svgEl.setAttribute('stroke-width', '1');
+            } else if (width > 1) {
+              svgEl.setAttribute('stroke-width', '0.5');
+            }
+          }
+          
+          // style 속성에 어두운 fill/stroke가 있는 경우 흰색으로 변경
+          if (style) {
+            let newStyle = style;
+            
+            // fill 속성 추출 및 변경
+            const fillMatch = style.match(/fill:\s*([^;]+)/gi);
+            if (fillMatch) {
+              fillMatch.forEach(match => {
+                const colorValue = match.replace(/fill:\s*/i, '').trim();
+                if (isDarkColor(colorValue)) {
+                  newStyle = newStyle.replace(match, 'fill:#ffffff');
+                }
+              });
+            }
+            
+            // stroke 속성 추출 및 변경
+            const strokeMatch = style.match(/stroke:\s*([^;]+)/gi);
+            if (strokeMatch) {
+              strokeMatch.forEach(match => {
+                const colorValue = match.replace(/stroke:\s*/i, '').trim();
+                if (isDarkColor(colorValue)) {
+                  newStyle = newStyle.replace(match, 'stroke:#ffffff');
+                }
+              });
+            }
+            
+            // stroke-width 속성 조정
+            newStyle = newStyle.replace(/stroke-width:\s*(\d+\.?\d*)/gi, (match, width) => {
+              const w = parseFloat(width);
+              if (w > 3) {
+                return 'stroke-width:1';
+              } else if (w > 1) {
+                return 'stroke-width:0.5';
+              }
+              return match;
+            });
+            
+            // 일반적인 검은색 패턴도 변경
+            newStyle = newStyle
+              .replace(/fill:\s*black/gi, 'fill:#ffffff')
+              .replace(/fill:\s*#000(?!\d)/gi, 'fill:#ffffff')
+              .replace(/fill:\s*#000000/gi, 'fill:#ffffff')
+              .replace(/fill:\s*rgb\(0,\s*0,\s*0\)/gi, 'fill:#ffffff')
+              .replace(/fill:\s*rgb\(0,0,0\)/gi, 'fill:#ffffff')
+              .replace(/stroke:\s*black/gi, 'stroke:#ffffff')
+              .replace(/stroke:\s*#000(?!\d)/gi, 'stroke:#ffffff')
+              .replace(/stroke:\s*#000000/gi, 'stroke:#ffffff')
+              .replace(/stroke:\s*rgb\(0,\s*0,\s*0\)/gi, 'stroke:#ffffff')
+              .replace(/stroke:\s*rgb\(0,0,0\)/gi, 'stroke:#ffffff');
+            
+            if (newStyle !== style) {
+              svgEl.setAttribute('style', newStyle);
+            }
+          }
+        });
+        
+        // 큰 배경 rect 요소 찾아서 흰색으로 변경 (Mermaid가 생성하는 배경 레이어)
+        const allRects = svgElement.querySelectorAll('rect');
+        const rectViewBoxStr = svgElement.getAttribute('viewBox');
+        let vbWidth = 0, vbHeight = 0;
+        
+        if (rectViewBoxStr) {
+          const parts = rectViewBoxStr.split(' ').map(Number);
+          if (parts.length >= 4) {
+            vbWidth = parts[2];
+            vbHeight = parts[3];
+          }
+        }
+        
+        allRects.forEach((rect: Element) => {
+          const r = rect as SVGRectElement;
+          const rectWidth = parseFloat(r.getAttribute('width') || '0');
+          const rectHeight = parseFloat(r.getAttribute('height') || '0');
+          const fill = r.getAttribute('fill');
+          const x = parseFloat(r.getAttribute('x') || '0');
+          const y = parseFloat(r.getAttribute('y') || '0');
+          
+          // 배경으로 간주하는 조건:
+          // 1. 전체 크기의 80% 이상인 매우 큰 rect (명확한 배경)
+          // 2. x=0, y=0이고 크기가 매우 큰 rect
+          // 3. fill이 어두운 색상이고 전체 크기의 70% 이상인 rect
+          const isLargeBackground = vbWidth > 0 && vbHeight > 0 && 
+                                   (rectWidth >= vbWidth * 0.8 && rectHeight >= vbHeight * 0.8);
+          const isCornerBackground = x <= 5 && y <= 5 && rectWidth >= vbWidth * 0.7 && rectHeight >= vbHeight * 0.7;
+          const hasDarkFillAndLarge = fill && isDarkColor(fill) && vbWidth > 0 && vbHeight > 0 &&
+                                     (rectWidth >= vbWidth * 0.75 && rectHeight >= vbHeight * 0.75);
+          
+          // 배경으로 판단되는 경우만 흰색으로 변경
+          if (isLargeBackground || isCornerBackground || hasDarkFillAndLarge) {
+            // 배경 rect를 강제로 흰색으로 변경
+            r.setAttribute('fill', '#ffffff');
+            const style = r.getAttribute('style') || '';
+            let newStyle = style.replace(/fill:\s*[^;]+/gi, 'fill:#ffffff');
+            if (!newStyle.includes('fill')) {
+              newStyle = newStyle ? `${newStyle}; fill:#ffffff` : 'fill:#ffffff';
+            }
+            r.setAttribute('style', newStyle);
+          }
+        });
+        
+        // 추가: 모든 rect 중에서 fill이 없는 경우에도 어두운 색상이 style에 있을 수 있음
+        allRects.forEach((rect: Element) => {
+          const r = rect as SVGRectElement;
+          const style = r.getAttribute('style');
+          if (style) {
+            const fillMatch = style.match(/fill:\s*([^;]+)/i);
+            if (fillMatch) {
+              const fillColor = fillMatch[1].trim();
+              if (isDarkColor(fillColor)) {
+                let newStyle = style.replace(/fill:\s*[^;]+/gi, 'fill:#ffffff');
+                r.setAttribute('style', newStyle);
+                r.setAttribute('fill', '#ffffff');
+              }
+            }
+          }
+        });
+        
+        // SVG 루트에 흰색 배경 rect를 맨 앞에 추가 (모든 요소 위에)
+        const svgViewBox = svgElement.getAttribute('viewBox');
+        if (svgViewBox) {
+          const [, , svgWidth, svgHeight] = svgViewBox.split(' ').map(Number);
+          if (svgWidth && svgHeight) {
+            // 기존 배경 rect 제거
+            const existingBg = svgElement.querySelector('rect[data-background]');
+            if (existingBg) {
+              existingBg.remove();
+            }
+            
+            // 새로운 흰색 배경 rect 추가
+            const bgRect = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            bgRect.setAttribute('x', '0');
+            bgRect.setAttribute('y', '0');
+            bgRect.setAttribute('width', String(svgWidth));
+            bgRect.setAttribute('height', String(svgHeight));
+            bgRect.setAttribute('fill', '#ffffff');
+            bgRect.setAttribute('data-background', 'true');
+            bgRect.setAttribute('style', 'fill:#ffffff;');
+            // 맨 앞에 삽입
+            if (svgElement.firstChild) {
+              svgElement.insertBefore(bgRect, svgElement.firstChild);
+            } else {
+              svgElement.appendChild(bgRect);
+            }
+          }
+        }
+        
+        // 명분에 맞게 노드 도형 알록달록 색상 적용 (수집=파랑, 저장=초록, 처리=보라, 알람=노랑, 제어=청록, 분석=핑크 등)
+        const vbStr = svgElement.getAttribute('viewBox');
+        let vbW = 1e9, vbH = 1e9;
+        if (vbStr) {
+          const p = vbStr.trim().split(/\s+/).map(Number);
+          if (p.length >= 4) { vbW = p[2]; vbH = p[3]; }
+        }
+        const purposeColors: [RegExp, string][] = [
+          [/\b(수집|ingest|수신|gateway|게이트웨이|vpn|터널|kinesis|스트리밍|어댑터|tcp|mqtt|rest|ecs|iot\s*core)\b/gi, '#dbeafe'],
+          [/\b(저장|storage|documentdb|s3|aurora|raw|warm|cold|layer|iceberg|athena|firehose)\b/gi, '#dcfce7'],
+          [/\b(처리|process|lambda|변환|분류|convert|classify|컨버트|aggregate|집계)\b/gi, '#e9d5ff'],
+          [/\b(알람|alarm|alert|룰|rule|rules|에스컬레이션|sns)\b/gi, '#fef3c7'],
+          [/\b(제어|control|shadow|ota|fota|펌웨어|원격)\b/gi, '#ccfbf1'],
+          [/\b(분석|analysis|ai|bedrock|sagemaker|이상|rca|예측|predictive)\b/gi, '#fce7f3'],
+          [/\b(모니터링|monitor|대시보드|cloudwatch)\b/gi, '#e0e7ff'],
+          [/\b(기초|마스터|master|기초정보|조인|site|고객)\b/gi, '#f1f5f9'],
+          [/\b(기사|as\s|출동|field\s*service)\b/gi, '#ffedd5'],
+          [/\b(eventbridge|이벤트|event)\b/gi, '#f3e8ff'],
+          [/\b(플랫폼|platform|통합|integrat)\b/gi, '#fef9c3'],
+          [/\b(온프레미스|onprem|legacy|기존)\b/gi, '#e0f2fe'],
+          [/\b(보안|security|cognito|secrets)\b/gi, '#fef2f2'],
+        ];
+        svgElement.querySelectorAll('g').forEach((g) => {
+          const cls = (g.getAttribute('class') || '') + (g.getAttribute('id') || '');
+          if (/edge|edgePath|link|cluster/i.test(cls)) return;
+          const shape = g.querySelector('rect, polygon, ellipse');
+          if (!shape) return;
+          const r = shape as SVGGraphicsElement;
+          const w = parseFloat(r.getAttribute('width') || '0') || (r.getBBox?.()?.width ?? 0);
+          const h = parseFloat(r.getAttribute('height') || '0') || (r.getBBox?.()?.height ?? 0);
+          if (vbW < 1e8 && vbH < 1e8 && w >= vbW * 0.7 && h >= vbH * 0.7) return;
+          const text = (g.textContent || '').replace(/\s+/g, ' ').trim();
+          let color = '#fef3c7';
+          for (const [re, c] of purposeColors) {
+            if (re.test(text)) { color = c; break; }
+          }
+          r.setAttribute('fill', color);
+          const st = r.getAttribute('style') || '';
+          if (st.includes('fill:')) r.setAttribute('style', st.replace(/fill:\s*[^;]+/gi, `fill:${color}`));
+          else if (st) r.setAttribute('style', st + `; fill:${color}`);
+          else r.setAttribute('style', `fill:${color}`);
+        });
+
         // SVG에 id 추가 (참조용)
         svgElement.setAttribute("data-mermaid-diagram", "true");
         
@@ -480,35 +878,339 @@ function MermaidDiagram({ diagram }: { diagram: string }) {
     };
   }, [diagram]);
 
-  // SVG 렌더링 후 참조 설정
+  // SVG 렌더링 후 참조 설정 및 배경 흰색 강제 적용
   useEffect(() => {
     if (svgContent) {
+      const applyWhiteBackground = (svgElement: SVGSVGElement | null) => {
+        if (!svgElement) return;
+        
+        // SVG 배경 흰색으로 강제 설정
+        svgElement.style.backgroundColor = "#ffffff";
+        svgElement.style.background = "#ffffff";
+        
+        // SVG 내부의 어두운 배경 요소 찾아서 흰색으로 변경 (화살표는 제외)
+        const isDarkColor = (color: string): boolean => {
+          if (!color || color === 'none' || color === 'transparent') return false;
+          const normalized = color.toLowerCase().trim();
+          
+          // 명시적인 검은색/어두운 색상
+          if (normalized === 'black' || normalized === '#000' || normalized === '#000000' || 
+              normalized === 'rgb(0,0,0)' || normalized === 'rgb(0, 0, 0)') {
+            return true;
+          }
+          
+          // 어두운 파란색 계열 (#001xxx ~ #004xxx 등)
+          if (normalized.startsWith('#') && normalized.length >= 4) {
+            if (normalized.length === 7) {
+              const r = parseInt(normalized.substr(1, 2), 16);
+              const g = parseInt(normalized.substr(3, 2), 16);
+              const b = parseInt(normalized.substr(5, 2), 16);
+              const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+              return brightness < 90; // 밝기 90 미만만 어두운 색(테두리 등 명확한 색 보존)
+            }
+            if (normalized.length === 4) {
+              const first = normalized[1];
+              if (first === '0' || first === '1' || first === '2' || first === '3' || first === '4') {
+                return true;
+              }
+            }
+          }
+          
+          // rgb/rgba 값 파싱
+          const rgbMatch = normalized.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
+          if (rgbMatch) {
+            const r = parseInt(rgbMatch[1]);
+            const g = parseInt(rgbMatch[2]);
+            const b = parseInt(rgbMatch[3]);
+            const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+            return brightness < 90; // 밝기 90 미만만 어두운 색(테두리 등 명확한 색 보존)
+          }
+          
+          return false;
+        };
+        
+        // 모든 SVG 요소 확인 (rect, path, line, polygon 등)
+        const allElements = svgElement.querySelectorAll('*');
+        allElements.forEach((element: Element) => {
+          const svgEl = element as SVGElement;
+          const tagName = svgEl.tagName.toLowerCase();
+          const fill = svgEl.getAttribute('fill');
+          const stroke = svgEl.getAttribute('stroke');
+          const strokeWidth = svgEl.getAttribute('stroke-width');
+          const style = svgEl.getAttribute('style');
+          const className = svgEl.getAttribute('class') || '';
+          
+          // 화살표/선 요소인지 확인
+          const isArrowOrLine = tagName === 'path' || tagName === 'line' || 
+                               tagName === 'polyline' || 
+                               className.includes('edge') || 
+                               className.includes('edgePath') ||
+                               className.includes('flowchart-link') ||
+                               className.includes('arrowheadPath');
+          
+          // fill 속성 처리 (배경만)
+          if (fill && isDarkColor(fill) && !isArrowOrLine) {
+            // rect, circle, ellipse 등 배경 요소만
+            if (tagName === 'rect' || tagName === 'circle' || tagName === 'ellipse' || tagName === 'polygon') {
+              svgEl.setAttribute('fill', '#ffffff');
+            }
+          }
+          
+          // stroke 속성 처리 (화살표는 보존, 노드 테두리는 회색)
+          if (stroke && !isArrowOrLine) {
+            if (tagName === 'rect' || tagName === 'circle' || tagName === 'ellipse' || tagName === 'polygon') {
+              // 노드 테두리는 연한 회색
+              if (isDarkColor(stroke)) {
+                svgEl.setAttribute('stroke', '#dee2e6');
+              }
+            }
+          }
+          
+          // stroke-width 조정 (화살표는 제외)
+          if (strokeWidth && !isArrowOrLine) {
+            const width = parseFloat(strokeWidth);
+            if (width > 3) {
+              svgEl.setAttribute('stroke-width', '1');
+            } else if (width > 1) {
+              svgEl.setAttribute('stroke-width', '0.5');
+            }
+          }
+          
+          // style 속성 처리
+          if (style) {
+            let newStyle = style;
+            
+            // fill 속성 추출 및 변경 (배경만)
+            const fillMatch = style.match(/fill:\s*([^;]+)/gi);
+            if (fillMatch && !isArrowOrLine) {
+              fillMatch.forEach(match => {
+                const colorValue = match.replace(/fill:\s*/i, '').trim();
+                if (isDarkColor(colorValue)) {
+                  if (tagName === 'rect' || tagName === 'circle' || tagName === 'ellipse' || tagName === 'polygon') {
+                    newStyle = newStyle.replace(match, 'fill:#ffffff');
+                  }
+                }
+              });
+            }
+            
+            // stroke 속성 추출 및 변경 (화살표는 제외)
+            if (!isArrowOrLine) {
+              const strokeMatch = style.match(/stroke:\s*([^;]+)/gi);
+              if (strokeMatch) {
+                strokeMatch.forEach(match => {
+                  const colorValue = match.replace(/stroke:\s*/i, '').trim();
+                  if (isDarkColor(colorValue)) {
+                    if (tagName === 'rect' || tagName === 'circle' || tagName === 'ellipse' || tagName === 'polygon') {
+                      newStyle = newStyle.replace(match, 'stroke:#dee2e6');
+                    } else {
+                      newStyle = newStyle.replace(match, 'stroke:#495057');
+                    }
+                  }
+                });
+              }
+            }
+            
+            // stroke-width 속성 조정 (화살표는 제외)
+            if (!isArrowOrLine) {
+              newStyle = newStyle.replace(/stroke-width:\s*(\d+\.?\d*)/gi, (match, width) => {
+                const w = parseFloat(width);
+                if (w > 3) {
+                  return 'stroke-width:1';
+                } else if (w > 1) {
+                  return 'stroke-width:0.5';
+                }
+                return match;
+              });
+            }
+            
+            // 일반적인 검은색 패턴도 변경 (화살표는 제외)
+            if (!isArrowOrLine) {
+              newStyle = newStyle
+                .replace(/fill:\s*black/gi, 'fill:#ffffff')
+                .replace(/fill:\s*#000(?!\d)/gi, 'fill:#ffffff')
+                .replace(/fill:\s*#000000/gi, 'fill:#ffffff')
+                .replace(/fill:\s*rgb\(0,\s*0,\s*0\)/gi, 'fill:#ffffff')
+                .replace(/fill:\s*rgb\(0,0,0\)/gi, 'fill:#ffffff');
+              
+              // 노드 테두리는 회색으로
+              if (tagName === 'rect' || tagName === 'circle' || tagName === 'ellipse' || tagName === 'polygon') {
+                newStyle = newStyle
+                  .replace(/stroke:\s*black/gi, 'stroke:#dee2e6')
+                  .replace(/stroke:\s*#000(?!\d)/gi, 'stroke:#dee2e6')
+                  .replace(/stroke:\s*#000000/gi, 'stroke:#dee2e6')
+                  .replace(/stroke:\s*rgb\(0,\s*0,\s*0\)/gi, 'stroke:#dee2e6')
+                  .replace(/stroke:\s*rgb\(0,0,0\)/gi, 'stroke:#dee2e6');
+              }
+            }
+            
+            if (newStyle !== style) {
+              svgEl.setAttribute('style', newStyle);
+            }
+          }
+          
+          // 화살표/선 요소의 stroke를 명시적으로 설정 (보이도록)
+          if (isArrowOrLine) {
+            // stroke가 없거나 투명한 경우 회색으로 설정
+            if (!stroke || stroke === 'none' || stroke === 'transparent') {
+              svgEl.setAttribute('stroke', '#495057');
+            }
+            // stroke-width가 없는 경우 기본값 설정
+            if (!strokeWidth || parseFloat(strokeWidth) < 1) {
+              svgEl.setAttribute('stroke-width', '2');
+            }
+            // style에도 stroke 추가
+            if (style) {
+              let arrowStyle = style;
+              if (!arrowStyle.includes('stroke:')) {
+                arrowStyle = `${arrowStyle}; stroke:#495057`;
+              }
+              if (!arrowStyle.includes('stroke-width:')) {
+                arrowStyle = `${arrowStyle}; stroke-width:2`;
+              }
+              svgEl.setAttribute('style', arrowStyle);
+            } else {
+              svgEl.setAttribute('style', 'stroke:#495057; stroke-width:2');
+            }
+          }
+        });
+        
+        // 화살표 path 요소를 명시적으로 찾아서 색상 설정
+        // Mermaid의 화살표는 보통 path 요소로 그려지며, 특정 클래스나 구조를 가짐
+        const allPaths = svgElement.querySelectorAll('path');
+        allPaths.forEach((path: Element) => {
+          const p = path as SVGPathElement;
+          const className = p.getAttribute('class') || '';
+          const d = p.getAttribute('d') || '';
+          const stroke = p.getAttribute('stroke');
+          const style = p.getAttribute('style') || '';
+          
+          // 화살표로 판단하는 조건: edge 관련 클래스 또는 특정 path 패턴
+          const isArrow = className.includes('edge') || 
+                         className.includes('flowchart') ||
+                         className.includes('link') ||
+                         d.includes('M') && d.includes('L') && !d.includes('Z'); // 직선 또는 곡선 path
+          
+          if (isArrow) {
+            // stroke가 없거나 흰색이거나 투명한 경우 회색으로 설정
+            if (!stroke || stroke === 'none' || stroke === 'transparent' || stroke === '#ffffff' || stroke === 'white') {
+              p.setAttribute('stroke', '#495057');
+            }
+            // stroke-width가 없는 경우 기본값 설정
+            const currentWidth = p.getAttribute('stroke-width');
+            if (!currentWidth || parseFloat(currentWidth) < 1) {
+              p.setAttribute('stroke-width', '2');
+            }
+            // style에도 stroke 추가/수정
+            let arrowStyle = style;
+            if (!arrowStyle.includes('stroke:') || arrowStyle.includes('stroke:#ffffff') || arrowStyle.includes('stroke:white')) {
+              arrowStyle = arrowStyle.replace(/stroke:\s*[^;]+/gi, '');
+              arrowStyle = arrowStyle ? `${arrowStyle}; stroke:#495057` : 'stroke:#495057';
+            }
+            if (!arrowStyle.includes('stroke-width:') || parseFloat(arrowStyle.match(/stroke-width:\s*([^;]+)/i)?.[1] || '0') < 1) {
+              arrowStyle = arrowStyle.replace(/stroke-width:\s*[^;]+/gi, '');
+              arrowStyle = arrowStyle ? `${arrowStyle}; stroke-width:2` : 'stroke-width:2';
+            }
+            p.setAttribute('style', arrowStyle);
+          }
+        });
+        
+        // line, polyline 요소도 화살표로 처리
+        const allLines = svgElement.querySelectorAll('line, polyline');
+        allLines.forEach((line: Element) => {
+          const l = line as SVGLineElement | SVGPolylineElement;
+          const stroke = l.getAttribute('stroke');
+          if (!stroke || stroke === 'none' || stroke === 'transparent' || stroke === '#ffffff' || stroke === 'white') {
+            l.setAttribute('stroke', '#495057');
+          }
+          const currentWidth = l.getAttribute('stroke-width');
+          if (!currentWidth || parseFloat(currentWidth) < 1) {
+            l.setAttribute('stroke-width', '2');
+          }
+        });
+        
+        // rect 요소 특별 처리 (배경으로 사용되는 큰 rect)
+        const allRects = svgElement.querySelectorAll('rect');
+        const rectViewBoxStr = svgElement.getAttribute('viewBox');
+        let vbWidth = 0, vbHeight = 0;
+        
+        if (rectViewBoxStr) {
+          const parts = rectViewBoxStr.split(' ').map(Number);
+          if (parts.length >= 4) {
+            vbWidth = parts[2];
+            vbHeight = parts[3];
+          }
+        }
+        
+        allRects.forEach((rect: Element) => {
+          const r = rect as SVGRectElement;
+          const rectWidth = parseFloat(r.getAttribute('width') || '0');
+          const rectHeight = parseFloat(r.getAttribute('height') || '0');
+          const fill = r.getAttribute('fill');
+          const x = parseFloat(r.getAttribute('x') || '0');
+          const y = parseFloat(r.getAttribute('y') || '0');
+          const style = r.getAttribute('style');
+          
+          // 배경으로 간주하는 조건
+          const isLargeBackground = vbWidth > 0 && vbHeight > 0 && 
+                                   (rectWidth >= vbWidth * 0.7 && rectHeight >= vbHeight * 0.7);
+          const isCornerBackground = x <= 10 && y <= 10 && rectWidth > 100 && rectHeight > 100;
+          const hasDarkFill = fill && isDarkColor(fill);
+          
+          // style에서 fill 추출
+          let styleFill = null;
+          if (style) {
+            const fillMatch = style.match(/fill:\s*([^;]+)/i);
+            if (fillMatch) {
+              styleFill = fillMatch[1].trim();
+            }
+          }
+          const hasDarkStyleFill = styleFill && isDarkColor(styleFill);
+          
+          if (isLargeBackground || isCornerBackground || hasDarkFill || hasDarkStyleFill) {
+            // 배경 rect를 강제로 흰색으로 변경
+            r.setAttribute('fill', '#ffffff');
+            let newStyle = style || '';
+            newStyle = newStyle.replace(/fill:\s*[^;]+/gi, 'fill:#ffffff');
+            if (!newStyle.includes('fill')) {
+              newStyle = newStyle ? `${newStyle}; fill:#ffffff` : 'fill:#ffffff';
+            }
+            r.setAttribute('style', newStyle);
+          }
+        });
+      };
+      
       if (containerRef.current) {
         const svg = containerRef.current.querySelector('svg[data-mermaid-diagram]') as SVGSVGElement;
         if (svg) {
           svgRef.current = svg;
+          applyWhiteBackground(svg);
+          
         }
       }
+      
       if (fullscreenContainerRef.current) {
         const svg = fullscreenContainerRef.current.querySelector('svg[data-mermaid-diagram]') as SVGSVGElement;
         if (svg) {
           fullscreenSvgRef.current = svg;
+          applyWhiteBackground(svg);
         }
       }
     }
   }, [svgContent, isFullscreenOpen]);
 
-  // 드래그 핸들러
+  // 드래그 핸들러: 클릭 = 드래그 상태, 마우스 이동할 때만 패닝
   const handleMouseDown = (e: React.MouseEvent, isFullscreen = false) => {
-    if (e.button !== 0) return; // 왼쪽 버튼만
-    const currentZoom = isFullscreen ? fullscreenZoom : zoom;
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
     const startPos = isFullscreen ? fullscreenPosition : position;
     dragStateRef.current = {
       isDragging: true,
       isFullscreen,
-      startX: e.clientX - startPos.x * currentZoom,
-      startY: e.clientY - startPos.y * currentZoom,
-      zoom: currentZoom,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startPosX: startPos.x,
+      startPosY: startPos.y,
     };
     setIsDragging(true);
   };
@@ -516,14 +1218,19 @@ function MermaidDiagram({ diagram }: { diagram: string }) {
   const handleMouseMove = useCallback((e: MouseEvent) => {
     const dragState = dragStateRef.current;
     if (!dragState.isDragging) return;
-    
-    const newX = (e.clientX - dragState.startX) / dragState.zoom;
-    const newY = (e.clientY - dragState.startY) / dragState.zoom;
-    
+    e.preventDefault();
+    const dx = e.clientX - dragState.startClientX;
+    const dy = e.clientY - dragState.startClientY;
     if (dragState.isFullscreen) {
-      setFullscreenPosition({ x: newX, y: newY });
+      setFullscreenPosition({
+        x: dragState.startPosX + dx,
+        y: dragState.startPosY + dy,
+      });
     } else {
-      setPosition({ x: newX, y: newY });
+      setPosition({
+        x: dragState.startPosX + dx,
+        y: dragState.startPosY + dy,
+      });
     }
   }, []);
 
@@ -566,8 +1273,8 @@ function MermaidDiagram({ diagram }: { diagram: string }) {
       });
     } else {
       setZoom(prev => {
-        const newZoom = Math.max(prev - 0.25, 0.5);
-        if (newZoom <= 1) {
+        const newZoom = Math.max(prev - 0.25, 0.3);
+        if (newZoom <= 1.0) {
           setPosition({ x: 0, y: 0 });
         }
         return newZoom;
@@ -580,8 +1287,42 @@ function MermaidDiagram({ diagram }: { diagram: string }) {
       setFullscreenZoom(1);
       setFullscreenPosition({ x: 0, y: 0 });
     } else {
-      setZoom(1);
+      setZoom(1.0); // 기본 100% 줌으로 리셋
       setPosition({ x: 0, y: 0 });
+    }
+  };
+
+  // 줌 입력 필드 핸들러
+  const handleZoomInputChange = (value: string, isFullscreen = false) => {
+    const numValue = parseInt(value, 10);
+    if (!isNaN(numValue) && numValue >= 30 && numValue <= (isFullscreen ? 500 : 300)) {
+      const newZoom = numValue / 100;
+      if (isFullscreen) {
+        setFullscreenZoom(newZoom);
+        if (newZoom <= 1) {
+          setFullscreenPosition({ x: 0, y: 0 });
+        }
+      } else {
+        setZoom(newZoom);
+        if (newZoom <= 1.0) {
+          setPosition({ x: 0, y: 0 });
+        }
+      }
+    }
+  };
+
+  const handleZoomInputBlur = (isFullscreen = false) => {
+    const currentZoom = isFullscreen ? fullscreenZoom : zoom;
+    const inputValue = isFullscreen ? fullscreenZoomInput : zoomInput;
+    const numValue = parseInt(inputValue, 10);
+    
+    if (isNaN(numValue) || numValue < 30 || numValue > (isFullscreen ? 500 : 300)) {
+      // 유효하지 않은 값이면 현재 줌 값으로 복원
+      if (isFullscreen) {
+        setFullscreenZoomInput(Math.round(fullscreenZoom * 100).toString());
+      } else {
+        setZoomInput(Math.round(zoom * 100).toString());
+      }
     }
   };
 
@@ -639,8 +1380,43 @@ function MermaidDiagram({ diagram }: { diagram: string }) {
 
   const handleFullscreen = () => {
     setIsFullscreenOpen(true);
-    setFullscreenZoom(zoom); // 현재 줌 레벨 유지
+    // 전체 화면 진입 시 기본적으로 1.5배 확대하여 글자가 명확하게 보이도록 설정
+    const initialZoom = Math.max(zoom, 1.5);
+    setFullscreenZoom(initialZoom);
+    setFullscreenPosition({ x: 0, y: 0 });
   };
+
+  // Hooks는 항상 최상단에서 호출되어야 함
+  const currentZoom = isFullscreenOpen ? fullscreenZoom : zoom;
+  const isProjectStructure = diagram.trim().includes("프로젝트 구성") || diagram.trim().includes("프로젝트구성");
+  // 전체 파이프라인 구성도인지 확인 (최대 폭 제한 제외)
+  const isFullPipelineDiagram = diagram.trim().includes("전체 데이터 파이프라인 구성도") || 
+                                diagram.trim().includes("전체 파이프라인 구성도") ||
+                                diagram.trim().includes("전체 파이프라인");
+  // 좌우폭 넓은 다이어그램(전체 파이프라인 등): 가로 최대 1200px (글씨 잘 보이게)
+  const isWideDiagram = diagram.trim().includes("AWS 클라우드") ||
+                        diagram.trim().includes("전체 데이터 파이프라인") ||
+                        diagram.trim().includes("전체 파이프라인 구성도") ||
+                        diagram.trim().includes("전체 파이프라인") ||
+                        (diagram.includes("기존시스템") && diagram.includes("게이트웨이"));
+  // 큰 흐름 (End-to-End) 다이어그램인지 확인 (크기 조정 필요)
+  const isLargeFlowDiagram = diagram.trim().includes("큰 흐름") || 
+                             diagram.trim().includes("End-to-End") ||
+                             diagram.trim().includes("end-to-end") ||
+                             diagram.trim().includes("전체 설계 흐름");
+  const diagramStats = useMemo(() => {
+    const lines = diagram
+      .split("\n")
+      .map(line => line.trim())
+      .filter(Boolean);
+    const edgeCount = (diagram.match(/-->|==>|---|-->|\.\.>/g) || []).length;
+    return {
+      lineCount: lines.length,
+      edgeCount,
+    };
+  }, [diagram]);
+  // 모든 다이어그램에 확대/축소/드래그 기능 제공
+  const isSimpleDiagram = false;
 
   if (isRendering) {
     return (
@@ -672,185 +1448,166 @@ function MermaidDiagram({ diagram }: { diagram: string }) {
     return null;
   }
 
-  const currentZoom = isFullscreenOpen ? fullscreenZoom : zoom;
-  const isProjectStructure = diagram.trim().includes("프로젝트 구성") || diagram.trim().includes("프로젝트구성");
-  const diagramStats = useMemo(() => {
-    const lines = diagram
-      .split("\n")
-      .map(line => line.trim())
-      .filter(Boolean);
-    const edgeCount = (diagram.match(/-->|==>|---|-->|\.\.>/g) || []).length;
-    return {
-      lineCount: lines.length,
-      edgeCount,
-    };
-  }, [diagram]);
-  const isSimpleDiagram = !isProjectStructure && (diagramStats.lineCount <= 8 || diagramStats.edgeCount <= 6);
-
   return (
     <>
-      <div className={`${isSimpleDiagram ? "my-2 sm:my-3 bg-transparent p-0" : "my-4 sm:my-6 bg-gray-50 rounded-lg p-4"} relative ${isProjectStructure ? 'project-structure-diagram' : ''}`}>
-        {!isSimpleDiagram && (
-          <>
-            {/* 컨트롤 버튼 */}
-            <div className="absolute top-2 right-2 z-10 flex flex-col gap-1 bg-white/95 backdrop-blur-sm rounded-lg p-1.5 shadow-xl border-2 border-gray-300">
-              <Button
-                onClick={() => handleFitToScreen()}
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 flex items-center gap-1.5 !text-gray-900 hover:!bg-green-100 hover:!text-green-700 hover:[&_svg]:!text-green-700 hover:[&_span]:!text-green-700 !font-semibold border border-gray-200 [&_svg]:!text-gray-900 [&_span]:!text-gray-900"
-                title="화면에 맞추기"
-              >
-                <Maximize2 className="h-4 w-4" />
-                <span className="text-xs">맞추기</span>
-              </Button>
-              <Button
-                onClick={() => handleReset()}
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 flex items-center gap-1.5 !text-gray-900 hover:!bg-orange-100 hover:!text-orange-700 hover:[&_svg]:!text-orange-700 hover:[&_span]:!text-orange-700 !font-semibold border border-gray-200 [&_svg]:!text-gray-900 [&_span]:!text-gray-900"
-                title="초기화 (Ctrl/Cmd + 0)"
-              >
-                <RotateCcw className="h-4 w-4" />
-                <span className="text-xs">초기화</span>
-              </Button>
-              <Button
-                onClick={handleFullscreen}
-                variant="ghost"
-                size="sm"
-                className="h-9 px-3 flex items-center gap-1.5 !text-gray-900 hover:!bg-purple-100 hover:!text-purple-700 hover:[&_svg]:!text-purple-700 hover:[&_span]:!text-purple-700 !font-semibold border border-gray-200 [&_svg]:!text-gray-900 [&_span]:!text-gray-900"
-                title="전체 화면"
-              >
-                <Maximize2 className="h-4 w-4" />
-                <span className="text-xs">전체화면</span>
-              </Button>
-            </div>
-
-            {/* 줌 레벨 표시 및 컨트롤 */}
-            <div className="absolute top-2 left-2 z-10 flex items-center gap-2 bg-white/95 backdrop-blur-sm rounded-lg px-2 py-1.5 shadow-xl border-2 border-gray-300">
-              <Button
-                onClick={() => handleZoomOut(false)}
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0 !text-gray-900 hover:!bg-blue-100 hover:!text-blue-700 !font-bold"
-                title="축소"
-              >
-                <span className="text-sm">-</span>
-              </Button>
-              <div className="text-sm font-bold text-gray-900 min-w-[50px] text-center">
-                {Math.round(zoom * 100)}%
-              </div>
-              <Button
-                onClick={() => handleZoomIn(false)}
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0 !text-gray-900 hover:!bg-blue-100 hover:!text-blue-700 !font-bold"
-                title="확대"
-              >
-                <span className="text-sm">+</span>
-              </Button>
-            </div>
-            
-          </>
-        )}
-
-        {/* 다이어그램 컨테이너 */}
+      <div className="my-4 sm:my-6 pb-2 relative">
+        {/* 기본 화면: 다이어그램 + 전체 보기 버튼만 (확대/축소/초기화/맞추기는 전체화면에만) */}
         <div 
           ref={containerRef}
-          className={`mermaid-container ${isSimpleDiagram ? "overflow-visible" : "overflow-auto"} relative ${isProjectStructure ? 'flex flex-col items-center' : ''}`}
+          className={`mermaid-container relative mx-auto ${isProjectStructure ? 'flex flex-col items-center' : ''}`}
           style={{ 
-            maxHeight: isSimpleDiagram ? "none" : "90vh",
-            minHeight: isSimpleDiagram ? "auto" : (isProjectStructure ? "400px" : "600px"),
-            cursor: !isSimpleDiagram && zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
-            width: isProjectStructure ? "100%" : "auto",
-            maxWidth: isSimpleDiagram ? "700px" : (isProjectStructure ? "600px" : "none"),
-            margin: isProjectStructure || isSimpleDiagram ? "0 auto" : "0",
+            minHeight: 80,
+            cursor: 'default',
+            width: "100%",
+            maxWidth: (isWideDiagram || isFullPipelineDiagram) ? "1200px" : "600px",
+            overflow: 'visible',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            position: 'relative',
           }}
-          onMouseDown={(e) => !isSimpleDiagram && zoom > 1 && handleMouseDown(e, false)}
         >
           <div
-            className={isProjectStructure ? "flex flex-col items-center w-full" : "flex justify-center items-start"}
-            style={{
-              transform: isSimpleDiagram ? "none" : `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
-              transformOrigin: "center center",
-              transition: isSimpleDiagram || isDragging ? 'none' : 'transform 0.2s ease-in-out',
-              width: "100%",
-              height: isSimpleDiagram ? "auto" : "100%",
-            }}
+            className={`w-full ${isProjectStructure ? "flex flex-col items-center" : "flex justify-center"}`}
+            style={{ maxWidth: '100%' }}
           >
             <div
               dangerouslySetInnerHTML={{ __html: svgContent }}
-              className={isProjectStructure || isSimpleDiagram ? "w-full mx-auto" : ""}
+              className="w-full mx-auto [&_svg]:max-w-full [&_svg]:h-auto [&_svg]:block"
               style={{
-                width: "100%",
-                maxWidth: isSimpleDiagram ? "700px" : (isProjectStructure ? "600px" : "800px"),
-                pointerEvents: !isSimpleDiagram && zoom > 1 ? 'none' : 'auto',
+                maxWidth: (isWideDiagram || isFullPipelineDiagram) ? "1200px" : "560px",
+                pointerEvents: 'auto',
+                userSelect: 'none',
               }}
             />
           </div>
         </div>
+
+        {/* 전체 보기 버튼 - 분리 배치 (아래쪽, 다이어그램을 가리지 않음 / 전체 보기에서 크기 조절·드래그 가능) */}
+        <div className="flex justify-end pt-2 mt-1">
+          <Button
+            onClick={handleFullscreen}
+            variant="default"
+            size="sm"
+            className="h-9 px-4 flex items-center gap-2 !bg-indigo-600 hover:!bg-indigo-700 !text-white shadow-lg border-2 border-indigo-500"
+            title="전체 보기 (크기 조절·드래그 가능)"
+          >
+            <Expand className="h-4 w-4" />
+            <span className="text-xs font-semibold">전체 보기</span>
+          </Button>
+        </div>
       </div>
 
       {/* 전체화면 모달 */}
-      {!isSimpleDiagram && (
-        <Dialog open={isFullscreenOpen} onOpenChange={setIsFullscreenOpen}>
-          <DialogContent className="!max-w-none !w-screen !h-screen !m-0 !p-4 !rounded-none !translate-x-0 !translate-y-0 !top-0 !left-0 flex flex-col">
+      <Dialog open={isFullscreenOpen} onOpenChange={setIsFullscreenOpen}>
+          <DialogContent overlayClassName="!bg-transparent" className="!max-w-none !w-screen !h-screen !m-0 !p-4 !rounded-none !translate-x-0 !translate-y-0 !top-0 !left-0 flex flex-col !border-0 !shadow-none">
             <DialogHeader className="flex-shrink-0 pb-2">
               <DialogTitle className="flex items-center justify-between">
-                <span>다이어그램 전체 보기</span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={() => handleZoomOut(true)}
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 !text-gray-900 hover:!bg-blue-100 hover:!text-blue-700 !font-bold"
-                    title="축소"
-                  >
-                    <span className="text-lg">-</span>
-                  </Button>
-                  <div className="text-base font-bold text-gray-900 min-w-[60px] text-center">
-                    {Math.round(fullscreenZoom * 100)}%
+                <span className="text-lg font-semibold">다이어그램 전체 보기</span>
+                <div className="flex items-center gap-3">
+                  {/* 확대/축소·크기 조절 - 버튼 + 슬라이더 (드래그로 이동 가능) */}
+                  <div className="flex flex-wrap items-center gap-2 bg-blue-50 rounded-lg px-3 py-2 border-2 border-blue-200">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={() => handleZoomOut(true)}
+                        variant="ghost"
+                        size="lg"
+                        className="h-12 w-12 p-0 !text-blue-700 hover:!bg-blue-200 hover:!text-blue-900 !font-bold shadow-md"
+                        title="축소 (Ctrl + 휠)"
+                      >
+                        <ZoomOut className="h-6 w-6" />
+                      </Button>
+                      <Input
+                        type="number"
+                        min="30"
+                        max="500"
+                        value={fullscreenZoomInput}
+                        onChange={(e) => setFullscreenZoomInput(e.target.value)}
+                        onBlur={() => handleZoomInputBlur(true)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleZoomInputChange(fullscreenZoomInput, true);
+                            e.currentTarget.blur();
+                          }
+                        }}
+                        className="h-10 w-20 text-xl font-bold text-blue-900 text-center bg-white px-2 py-1 rounded border border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        style={{ textAlign: 'center' }}
+                      />
+                      <span className="text-xl font-bold text-blue-900">%</span>
+                      <Button
+                        onClick={() => handleZoomIn(true)}
+                        variant="ghost"
+                        size="lg"
+                        className="h-12 w-12 p-0 !text-blue-700 hover:!bg-blue-200 hover:!text-blue-900 !font-bold shadow-md"
+                        title="확대 (Ctrl + 휠)"
+                      >
+                        <ZoomIn className="h-6 w-6" />
+                      </Button>
+                    </div>
+                    <input
+                      type="range"
+                      min={30}
+                      max={500}
+                      value={Math.round(fullscreenZoom * 100)}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10) / 100;
+                        setFullscreenZoom(v);
+                        setFullscreenZoomInput(e.target.value);
+                        if (v <= 1) setFullscreenPosition({ x: 0, y: 0 });
+                      }}
+                      className="w-28 h-2 accent-blue-600 cursor-pointer"
+                      title="크기 조절 (30%~500%)"
+                    />
                   </div>
-                  <Button
-                    onClick={() => handleZoomIn(true)}
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 !text-gray-900 hover:!bg-blue-100 hover:!text-blue-700 !font-bold"
-                    title="확대"
-                  >
-                    <span className="text-lg">+</span>
-                  </Button>
-                  <Button
-                    onClick={() => handleFitToScreen(true)}
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-3 !text-gray-900 hover:!bg-green-100 hover:!text-green-700"
-                    title="화면에 맞추기"
-                  >
-                    <Maximize2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    onClick={() => handleReset(true)}
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-3 !text-gray-900 hover:!bg-orange-100 hover:!text-orange-700"
-                    title="초기화"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                  </Button>
+                  {/* 기타 버튼 */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() => handleFitToScreen(true)}
+                      variant="ghost"
+                      size="lg"
+                      className="h-12 px-4 !text-gray-700 hover:!bg-green-100 hover:!text-green-700 border border-gray-300 shadow-md"
+                      title="화면에 맞추기"
+                    >
+                      <Maximize2 className="h-5 w-5 mr-2" />
+                      <span className="text-sm font-semibold">맞추기</span>
+                    </Button>
+                    <Button
+                      onClick={() => handleReset(true)}
+                      variant="ghost"
+                      size="lg"
+                      className="h-12 px-4 !text-gray-700 hover:!bg-orange-100 hover:!text-orange-700 border border-gray-300 shadow-md"
+                      title="초기화 (Ctrl + 0)"
+                    >
+                      <RotateCcw className="h-5 w-5 mr-2" />
+                      <span className="text-sm font-semibold">초기화</span>
+                    </Button>
+                  </div>
                 </div>
               </DialogTitle>
             </DialogHeader>
             <div 
               ref={fullscreenContainerRef}
-              className="flex-1 overflow-hidden bg-gray-50 rounded-lg p-4 relative"
+              className="flex-1 overflow-hidden bg-white rounded-lg p-4 relative"
               style={{
-                cursor: fullscreenZoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                cursor: isDragging ? 'grabbing' : 'grab',
+                backgroundColor: '#ffffff',
+                touchAction: 'none',
               }}
-              onMouseDown={(e) => fullscreenZoom > 1 && handleMouseDown(e, true)}
+              onMouseDown={(e) => handleMouseDown(e, true)}
+              onWheel={(e) => {
+                if (e.ctrlKey || e.metaKey) {
+                  e.preventDefault();
+                  const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                  const newZoom = Math.max(0.3, Math.min(5, fullscreenZoom + delta));
+                  setFullscreenZoom(newZoom);
+                  if (newZoom <= 1) {
+                    setFullscreenPosition({ x: 0, y: 0 });
+                  }
+                }
+              }}
             >
             <div
-              className="flex justify-center items-start"
+              className="flex justify-center items-center"
               style={{
                 transform: `translate(${fullscreenPosition.x}px, ${fullscreenPosition.y}px) scale(${fullscreenZoom})`,
                 transformOrigin: "center center",
@@ -863,15 +1620,15 @@ function MermaidDiagram({ diagram }: { diagram: string }) {
                 dangerouslySetInnerHTML={{ __html: svgContent }}
                 style={{
                   width: "100%",
-                maxWidth: "800px",
-                  pointerEvents: fullscreenZoom > 1 ? 'none' : 'auto',
+                  maxWidth: isFullPipelineDiagram ? "100%" : "1200px",
+                  pointerEvents: 'none',
+                  backgroundColor: '#ffffff',
                 }}
               />
             </div>
             </div>
           </DialogContent>
         </Dialog>
-      )}
     </>
   );
 }
@@ -935,7 +1692,7 @@ const techCategories = [
   {
     id: "mapping",
     title: "🔗 문서 매핑",
-    keywords: ["매핑", "대시보드", "프레젠테이션", "사용 방법"],
+    keywords: ["매핑", "솔루션 상세", "프레젠테이션", "사용 방법"],
     color: "text-gray-600"
   }
 ];
@@ -959,6 +1716,7 @@ function parseMarkdownSections(content: string) {
   
   let currentSection: { title: string; level: number; content: string; id: string } | null = null;
   let currentContent: string[] = [];
+  let sectionIndex = 0; // 전체 섹션 인덱스
 
   let inCodeBlock = false;
 
@@ -990,7 +1748,18 @@ function parseMarkdownSections(content: string) {
       // 새 섹션 시작
       const level = headingMatch[1].length;
       const title = headingMatch[2].trim();
-      const id = title.toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/^-|-$/g, '');
+      const baseId = title.toLowerCase().replace(/[^a-z0-9가-힣]+/g, '-').replace(/^-|-$/g, '');
+      
+      // 중복 방지를 위해 섹션 인덱스와 함께 고유 ID 생성
+      sectionIndex++;
+      let id = `${baseId}-${sectionIndex}`;
+      
+      // 여전히 중복이면 추가 카운터 사용
+      let counter = 1;
+      while (sections.some(s => s.id === id)) {
+        id = `${baseId}-${sectionIndex}-${counter}`;
+        counter++;
+      }
       
       currentSection = { title, level, content: '', id };
       currentContent = [];
@@ -1014,7 +1783,6 @@ export function DocsApp() {
   const [docContent, setDocContent] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [sections, setSections] = useState<Array<{ title: string; level: number; content: string; id: string; category?: string }>>([]);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(techCategories.map(c => c.id)));
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const currentDocIndex = useMemo(() => docFiles.findIndex(doc => doc.file === selectedDoc), [selectedDoc]);
   const prevDoc = currentDocIndex > 0 ? docFiles[currentDocIndex - 1] : null;
@@ -1029,12 +1797,13 @@ export function DocsApp() {
   }, [sections.length, activeSectionIndex]);
 
   const goToSection = useCallback((sectionId: string) => {
-    setActiveSection(sectionId);
     const docId = docFiles.find(d => d.file === selectedDoc)?.id;
     if (docId) {
+      // window.location.hash를 사용하면 자동으로 hashchange 이벤트 발생 및 히스토리 추가
       window.location.hash = `#docs/${docId}/${sectionId}`;
+      setActiveSection(sectionId);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [selectedDoc]);
 
   // 해시 변경 감지 및 처리
@@ -1056,8 +1825,15 @@ export function DocsApp() {
         } else if (sectionId && sections.length > 0) {
           // 문서는 이미 로드되어 있고 섹션만 변경
           const section = sections.find(s => s.id === sectionId);
-          if (section) {
+          if (section && activeSection !== sectionId) {
             setActiveSection(sectionId);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        } else if (!sectionId && docFile) {
+          // 섹션이 없으면 첫 번째 섹션으로
+          if (sections.length > 0) {
+            const firstSectionId = sections[0].id;
+            window.location.hash = `#docs/${docId}/${firstSectionId}`;
           }
         }
       } else if (hash === "docs") {
@@ -1071,7 +1847,7 @@ export function DocsApp() {
     // 초기 로드
     handleHashChange();
     
-    // 해시 변경 이벤트 리스너
+    // 해시 변경 이벤트 리스너 (뒤로가기/앞으로가기도 hashchange로 처리됨)
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, [sections, selectedDoc, loading]);
@@ -1098,49 +1874,66 @@ export function DocsApp() {
       themeVariables: {
         fontSize: "16px",
         fontFamily: "Inter, Arial, sans-serif",
+        // 주요 색상 - 명확한 파란색 계열
         primaryColor: "#2196F3",
-        primaryTextColor: "#fff",
-        primaryBorderColor: "#1976D2",
-        lineColor: "#333",
+        primaryTextColor: "#ffffff",
+        primaryBorderColor: "#1565C0",
+        // 선 색상 - 회색으로 명확하게 표시
+        lineColor: "#666666",
         secondaryColor: "#4CAF50",
         tertiaryColor: "#FF9800",
         fontSize2: "15px",
         fontSize3: "14px",
-        noteBkgColor: "#fff5ad",
+        // 노트 색상
+        noteBkgColor: "#fff9c4",
         noteTextColor: "#333",
-        noteBorderColor: "#aaa",
-        actorBorder: "#666",
-        actorBkg: "#e1f5ff",
-        actorTextColor: "#333",
-        actorLineColor: "#666",
+        noteBorderColor: "#f57f17",
+        // Actor (Sequence Diagram)
+        actorBorder: "#1565C0",
+        actorBkg: "#e3f2fd",
+        actorTextColor: "#1565C0",
+        actorLineColor: "#666666",
         signalColor: "#333",
         signalTextColor: "#333",
-        labelBoxBkgColor: "#e1f5ff",
-        labelBoxBorderColor: "#32638a",
+        // 라벨 박스
+        labelBoxBkgColor: "#f5f5f5",
+        labelBoxBorderColor: "#999999",
         labelTextColor: "#333",
         loopTextColor: "#333",
-        activationBorderColor: "#666",
-        activationBkgColor: "#f4f4f4",
-        sequenceNumberColor: "#fff",
-        sectionBkgColor: "rgba(255, 255, 0, 0.1)",
-        altBkgColor: "rgba(255, 255, 0, 0.1)",
-        doneBkgColor: "rgba(0, 255, 0, 0.1)",
-        doneBorderColor: "rgba(0, 255, 0, 0.5)",
-        activeBkgColor: "rgba(0, 255, 0, 0.2)",
-        activeBorderColor: "rgba(0, 255, 0, 0.5)",
-        taskBkgColor: "#e1f5ff",
-        taskTextColor: "#333",
-        taskTextLightColor: "#333",
+        // Activation (Sequence Diagram)
+        activationBorderColor: "#1565C0",
+        activationBkgColor: "#e3f2fd",
+        sequenceNumberColor: "#ffffff",
+        // 섹션 색상
+        sectionBkgColor: "#f3e5f5",
+        altBkgColor: "#fff3e0",
+        doneBkgColor: "#e8f5e9",
+        // 색상 스케일
+        cScale0: "#e3f2fd",
+        cScale1: "#bbdefb",
+        cScale2: "#90caf9",
+        // 메인 배경 - 흰색 유지
+        mainBkg: "#ffffff",
+        secondBkg: "#f5f5f5",
+        tertiaryBkg: "#fafafa",
+        // Done/Task 색상
+        doneBorderColor: "#4CAF50",
+        activeBkgColor: "#fff3e0",
+        activeBorderColor: "#FF9800",
+        taskBkgColor: "#e3f2fd",
+        taskTextColor: "#1565C0",
+        taskTextLightColor: "#666666",
         taskTextOutsideColor: "#333",
-        taskTextClickableColor: "#003163",
-        activeTaskBorderColor: "#534fbc",
-        activeTaskBkgColor: "#f4f4f4",
+        taskTextClickableColor: "#0d47a1",
+        activeTaskBorderColor: "#FF9800",
+        activeTaskBkgColor: "#fff3e0",
         gridColor: "#e0e0e0",
-        doneTaskBkgColor: "rgba(0, 255, 0, 0.1)",
-        doneTaskBorderColor: "rgba(0, 255, 0, 0.5)",
-        critBorderColor: "#ff8888",
-        critBkgColor: "#ff0000",
-        todayLineColor: "#ff0000",
+        doneTaskBkgColor: "#e8f5e9",
+        doneTaskBorderColor: "#4CAF50",
+        // Critical 색상
+        critBorderColor: "#f44336",
+        critBkgColor: "#ffebee",
+        todayLineColor: "#f44336",
       },
     });
   }, []);
@@ -1198,12 +1991,13 @@ export function DocsApp() {
             : parsedSections[0].id;
           setActiveSection(sectionId);
           
-          // 해시 업데이트 (현재 해시와 다를 때만)
+          // 해시 업데이트 (현재 해시와 다를 때만) - 히스토리에 추가하지 않음 (로딩 중이므로)
           if (docId && hash !== `docs/${docId}/${sectionId}`) {
-            window.location.hash = `#docs/${docId}/${sectionId}`;
+            // replaceState 사용하여 히스토리에 추가하지 않음 (로딩 완료 시점이므로)
+            window.history.replaceState(null, '', `#docs/${docId}/${sectionId}`);
           }
         } else if (docId && hash !== `docs/${docId}`) {
-          window.location.hash = `#docs/${docId}`;
+          window.history.replaceState(null, '', `#docs/${docId}`);
         }
       } else {
         setDocContent(`문서를 불러올 수 없습니다: ${fileName}`);
@@ -1217,8 +2011,9 @@ export function DocsApp() {
   };
 
   const goToDoc = (doc: (typeof docFiles)[number]) => {
-    loadDoc(doc.file);
+    // window.location.hash를 사용하면 자동으로 hashchange 이벤트 발생 및 히스토리 추가
     window.location.hash = `#docs/${doc.id}`;
+    loadDoc(doc.file);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -1275,49 +2070,116 @@ export function DocsApp() {
           <p className="text-sm sm:text-base text-gray-600">프로젝트의 전체 설계 문서를 단계별로 확인할 수 있습니다.</p>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-6">
+        {/* 프로젝트 목표 — 설계 초기 화면 상단 표기 */}
+        <div className="mb-4 sm:mb-6">
+          <Card className="bg-white border-2 border-blue-200 shadow-sm">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm sm:text-base flex items-center gap-2 text-blue-900">
+                <Flag className="h-4 w-4 text-blue-600" />
+                <span>프로젝트 목표</span>
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm text-gray-600 mt-1">
+                <strong>서비스 목적</strong> — 분산된 IoT 데이터를 통합하고, 프로토콜/형식/저장소가 다른 데이터까지 폭넓게 통합 관리하며, 실시간 모니터링·원격 제어·AI 기반 분석을 통해 <strong>무중단 서비스를 지원하는 지능형 IoT 관리 플랫폼</strong>을 제공합니다.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-0 space-y-2">
+              <p className="text-xs sm:text-sm text-gray-700">
+                <strong>운영 목표</strong> — 데이터 수집 → 모니터링 → 알림 발생 → 제어/OTA 처리 → 기사 출동 처리 → 제품 개선을 통한 <strong>무중단 서비스 지원</strong>
+              </p>
+              <p className="text-xs sm:text-sm text-gray-700">
+                <strong>핵심 가치</strong> — 데이터 활용도·복구 시간·알람 정확도 개선, 현장 출동 축소(자동 해결률 85%), 운영비 절감 40%. 상세는 서비스 개요, 아래 데이터 목표(8개) 및 설계 문서를 참고하세요.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 프론트엔드 설계 시 관점별 화면 구성·권한 처리 필요 (관점별 보기 필터 아님) */}
+        <div className="mb-4 sm:mb-6">
+          <Card className="bg-amber-50/80 border border-amber-200">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm sm:text-base flex items-center gap-2 text-amber-900">
+                <span>📌</span>
+                <span>프론트엔드 설계 요건</span>
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm text-amber-800">
+                설계·구현 시 <strong>관점별 화면 구성</strong> 및 <strong>권한 처리</strong>가 필요합니다. (서비스 / 연구소 / 고객 관점)
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+
+        {/* 데이터 목표 (8개) — 설계 문서 웹 화면에 상시 표기 */}
+        <div className="mb-4 sm:mb-6">
+          <Card className="bg-slate-50/90 border border-slate-200">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm sm:text-base flex items-center gap-2 text-slate-800">
+                <Target className="h-4 w-4 text-indigo-600" />
+                <span>명확한 데이터 목표 (8개)</span>
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm text-slate-600 mt-1">
+                본 프로젝트의 데이터 관점 핵심 목표입니다. 상세는 설계 문서 가이드·서비스 개요를 참고하세요.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-0">
+              <ol className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-xs sm:text-sm text-slate-700 list-decimal list-inside">
+                <li><strong>다채널 데이터 원활한 수집</strong> — 기초데이터·IoT 센서 데이터를 TCP·MQTT·REST 등 여러 채널에서 끊김 없이 수집</li>
+                <li><strong>제품별 YAML 관리를 통한 데이터 통합</strong> — 제품·형식별 YAML 스펙으로 변환·표준화하여 단일 플랫폼에서 통합</li>
+                <li><strong>알람 룰셋 등록에 따른 알람 자동화</strong> — 제품별 룰셋 등록 시 룰 엔진으로 알람 자동 발생·분류·에스컬레이션 수행</li>
+                <li><strong>알람 장비 원격제어·FoTA를 통한 정비</strong> — Device Shadow·FoTA로 알람 장비 원격 제어 및 정비</li>
+                <li><strong>AS 기사 알림 처리</strong> — 알람·에스컬레이션에 따른 AS 기사 알림·배차·처리 이력 관리</li>
+                <li><strong>연구소 분석 데이터 생성</strong> — 연구소 관점의 집계·이상탐지·RCA·예측 등 분석 데이터 생성·활용</li>
+                <li><strong>서비스 분석데이터 및 관련 서비스 데이터 관리</strong> — 서비스 관점 분석데이터와 고객·제품별 서비스 데이터의 저장·조회·관리</li>
+                <li><strong>향후 AI·LLM 기반 자동화</strong> — AI 이상탐지·예측, LLM 분석·보고 자동화, 자동 대응 룰 고도화 등으로 확장</li>
+              </ol>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
           {/* 문서 목록 및 섹션 목록 */}
-          <div className="xl:col-span-1 space-y-4">
+          <div className="lg:col-span-1 space-y-4">
             <Card className="mb-4">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base sm:text-lg">문서 목록</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">설계 문서를 선택하세요</CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
+                  설계 문서를 선택하세요 {docFiles.length > 0 && ` (${docFiles.length}개)`}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
                 {docFiles.map((doc) => {
-                  const Icon = doc.icon;
-                  const isActive = selectedDoc === doc.file;
-                  return (
-                    <Button
-                      key={doc.id}
-                      variant={isActive ? "default" : "outline"}
-                      className={`w-full justify-start text-xs sm:text-sm ${
-                        isActive 
-                          ? "!bg-blue-600 !text-white hover:!bg-blue-700 hover:!text-white [&_svg]:!text-white [&_span]:!text-white hover:[&_svg]:!text-white hover:[&_span]:!text-white" 
-                          : "!text-gray-900 hover:!bg-gray-100 hover:!text-gray-900 [&_svg]:!text-current [&_span]:!text-current hover:[&_svg]:!text-gray-900 hover:[&_span]:!text-gray-900"
-                      }`}
-                      onClick={() => {
-                        loadDoc(doc.file);
-                        window.location.hash = `#docs/${doc.id}`;
-                      }}
-                      disabled={loading}
-                    >
-                      <Icon className={`h-3 w-3 sm:h-4 sm:w-4 mr-2 ${isActive ? "" : doc.color}`} />
-                      <span className="truncate">{doc.title}</span>
-                    </Button>
-                  );
+                    const Icon = doc.icon;
+                    const isActive = selectedDoc === doc.file;
+                    return (
+                      <Button
+                        key={doc.id}
+                        variant={isActive ? "default" : "outline"}
+                        className={`w-full justify-start text-xs sm:text-sm ${
+                          isActive 
+                            ? "!bg-blue-600 !text-white hover:!bg-blue-700 hover:!text-white [&_svg]:!text-white [&_span]:!text-white hover:[&_svg]:!text-white hover:[&_span]:!text-white" 
+                            : "!text-gray-900 hover:!bg-gray-100 hover:!text-gray-900 [&_svg]:!text-current [&_span]:!text-current hover:[&_svg]:!text-gray-900 hover:[&_span]:!text-gray-900"
+                        }`}
+                        onClick={() => {
+                          loadDoc(doc.file);
+                          window.location.hash = `#docs/${doc.id}`;
+                        }}
+                        disabled={loading}
+                      >
+                        <Icon className={`h-3 w-3 sm:h-4 sm:w-4 mr-2 ${isActive ? "" : doc.color}`} />
+                        <span className="truncate">{doc.title}</span>
+                      </Button>
+                    );
                 })}
               </CardContent>
             </Card>
 
             {/* 모든 섹션 목록 (순서대로) */}
             {selectedDoc && sections.length > 0 && (
-              <Card className="hidden xl:block mb-4">
+              <Card className="mb-4">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base sm:text-lg">모든 섹션</CardTitle>
                   <CardDescription className="text-xs sm:text-sm">{sections.length}개 섹션 (순서대로)</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-1 max-h-[calc(50vh-200px)] overflow-y-auto">
+                <CardContent className="space-y-1">
                   {sections.map((section) => {
                     const isActive = activeSection === section.id;
                     const indentLevel = section.level > 2 ? (section.level - 2) * 8 : 0;
@@ -1344,110 +2206,10 @@ export function DocsApp() {
               </Card>
             )}
 
-            {/* 기술 스택별 섹션 (별도 분리) */}
-            {selectedDoc && sections.length > 0 && (
-              <Card className="hidden xl:block">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base sm:text-lg">기술 스택별 섹션</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">카테고리별로 분류된 섹션</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2 max-h-[calc(50vh-200px)] overflow-y-auto">
-                  {techCategories.map((category) => {
-                    const categorySections = sections.filter(s => s.category === category.id);
-                    
-                    if (categorySections.length === 0) return null;
-                    
-                    const isExpanded = expandedCategories.has(category.id);
-                    
-                    return (
-                      <div key={category.id} className="space-y-1">
-                        <Button
-                          variant="ghost"
-                          className={`w-full justify-between text-left h-auto py-2 px-2 text-xs sm:text-sm font-semibold ${category.color} hover:bg-gray-100`}
-                          onClick={() => {
-                            const newExpanded = new Set(expandedCategories);
-                            if (isExpanded) {
-                              newExpanded.delete(category.id);
-                            } else {
-                              newExpanded.add(category.id);
-                            }
-                            setExpandedCategories(newExpanded);
-                          }}
-                        >
-                          <span className="flex items-center gap-2">
-                            <ChevronRight 
-                              className={`h-3 w-3 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} 
-                            />
-                            <span>{category.title}</span>
-                          </span>
-                          <Badge variant="secondary" className="text-xs">
-                            {categorySections.length}
-                          </Badge>
-                        </Button>
-                        
-                        {isExpanded && (
-                          <div className="ml-4 space-y-1">
-                            {categorySections.map((section) => {
-                              const isActive = activeSection === section.id;
-                              const indentLevel = section.level > 2 ? (section.level - 2) * 4 : 0;
-                              
-                              return (
-                                <Button
-                                  key={section.id}
-                                  variant={isActive ? "default" : "ghost"}
-                                  className={`w-full justify-start text-left h-auto py-1.5 px-2 text-xs ${
-                                    isActive 
-                                      ? "!bg-blue-600 !text-white hover:!bg-blue-700 hover:!text-white" 
-                                      : "!text-gray-700 hover:!bg-gray-100 hover:!text-gray-900"
-                                  }`}
-                                  style={{ paddingLeft: `${8 + indentLevel}px` }}
-                                  onClick={() => goToSection(section.id)}
-                                >
-                                  <span className="font-normal flex-1 truncate text-left">{section.title}</span>
-                                </Button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  
-                  {/* 카테고리에 속하지 않은 섹션 */}
-                  {(() => {
-                    const uncategorizedSections = sections.filter(s => !s.category || !techCategories.find(c => c.id === s.category));
-                    if (uncategorizedSections.length === 0) return null;
-                    
-                    return (
-                      <div className="space-y-1 mt-4 pt-4 border-t">
-                        <div className="text-xs font-semibold text-gray-500 px-2 mb-1">기타</div>
-                        {uncategorizedSections.map((section) => {
-                          const isActive = activeSection === section.id;
-                          return (
-                            <Button
-                              key={section.id}
-                              variant={isActive ? "default" : "ghost"}
-                              className={`w-full justify-start text-left h-auto py-1.5 px-2 text-xs ${
-                                isActive 
-                                  ? "!bg-blue-600 !text-white hover:!bg-blue-700" 
-                                  : "!text-gray-700 hover:!bg-gray-100"
-                              }`}
-                              onClick={() => goToSection(section.id)}
-                            >
-                              <span className="font-normal flex-1 truncate text-left">{section.title}</span>
-                            </Button>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           {/* 문서 내용 */}
-          <div className="xl:col-span-4 min-w-0">
+          <div className="lg:col-span-4 min-w-0">
             <Card>
               <CardHeader className="pb-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1523,7 +2285,7 @@ export function DocsApp() {
                       prose-p:text-gray-700 prose-p:leading-relaxed prose-p:text-sm sm:prose-p:text-base
                       prose-strong:text-gray-900 prose-strong:font-semibold
                       prose-code:text-gray-800 prose-code:bg-gray-100 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-xs sm:prose-code:text-sm prose-code:font-mono
-                      prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-pre:border prose-pre:border-gray-300 prose-pre:overflow-x-auto prose-pre:text-xs sm:prose-pre:text-sm
+                      prose-pre:bg-slate-100 prose-pre:text-slate-800 prose-pre:border prose-pre:border-slate-200 prose-pre:overflow-x-auto prose-pre:text-xs sm:prose-pre:text-sm
                       prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline
                       prose-li:text-gray-700 prose-li:text-sm sm:prose-li:text-base prose-ul:text-gray-700 prose-ol:text-gray-700
                       prose-blockquote:text-gray-600 prose-blockquote:border-l-gray-400

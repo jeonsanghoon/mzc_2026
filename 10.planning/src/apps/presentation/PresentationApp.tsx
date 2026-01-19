@@ -15,8 +15,8 @@ import { ROISlide } from "./slides/ROISlide";
 
 interface PresentationAppProps {
   
-  onModeChange?: (mode: "dashboard" | "presentation" | "docs") => void;
-  currentMode?: "dashboard" | "presentation" | "docs";
+  onModeChange?: (mode: "solution" | "presentation" | "docs") => void;
+  currentMode?: "solution" | "presentation" | "docs";
 }
 
 export function PresentationApp({ onModeChange, currentMode = "presentation" }: PresentationAppProps = {}) {
@@ -47,7 +47,7 @@ export function PresentationApp({ onModeChange, currentMode = "presentation" }: 
     },
     {
       id: "benefits",
-      title: "4. 모니터링 · 제어 · 분석",
+      title: "4. 모니터링 · 분석 · 제어",
       component: <BenefitsSlide />,
       bgColor: "from-green-500 to-emerald-500",
     },

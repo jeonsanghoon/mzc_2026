@@ -9,7 +9,7 @@ import { DocsApp } from "./apps/docs/DocsApp";
 
 export default function App() {
   const [mode, setMode] = useState<
-    "dashboard" | "presentation" | "docs"
+    "solution" | "presentation" | "docs"
   >("presentation");
 
   // 해시로 모드 감지 및 업데이트
@@ -21,9 +21,9 @@ export default function App() {
         if (mode !== "presentation") {
           setMode("presentation");
         }
-      } else if (hash.startsWith("dashboard")) {
-        if (mode !== "dashboard") {
-          setMode("dashboard");
+      } else if (hash.startsWith("solution") || hash.startsWith("dashboard")) {
+        if (mode !== "solution") {
+          setMode("solution");
         }
       } else if (hash.startsWith("docs")) {
         if (mode !== "docs") {
@@ -50,10 +50,12 @@ export default function App() {
 
   // 모드 전환 시 해시 업데이트
   const toggleMode = (
-    newMode: "dashboard" | "presentation" | "docs",
+    newMode: "solution" | "presentation" | "docs",
   ) => {
     setMode(newMode);
-    window.location.hash = `#${newMode}`;
+    // 하위 호환성을 위해 dashboard도 solution으로 변환
+    const hashMode = newMode === "solution" ? "solution" : newMode;
+    window.location.hash = `#${hashMode}`;
   };
 
   // 모드 선택 버튼 컴포넌트
@@ -74,13 +76,13 @@ export default function App() {
           <span className="hidden sm:inline">프레젠테이션</span>
         </Button>
         <Button
-          onClick={() => toggleMode("dashboard")}
+          onClick={() => toggleMode("solution")}
           variant="outline"
           size="sm"
-          className={`${baseButtonClass} ${mode === "dashboard" ? activeButtonClass : inactiveButtonClass}`}
+          className={`${baseButtonClass} ${mode === "solution" ? activeButtonClass : inactiveButtonClass}`}
         >
           <Monitor className="h-3 w-3" />
-          <span className="hidden sm:inline">대시보드</span>
+          <span className="hidden sm:inline">솔루션 상세</span>
         </Button>
         <Button
           onClick={() => toggleMode("docs")}
@@ -96,7 +98,7 @@ export default function App() {
   };
 
   // 모드 전환 버튼 (개발용)
-  if (mode === "dashboard") {
+  if (mode === "solution") {
     return (
       <div>
         <ModeButtons />
