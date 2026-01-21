@@ -124,7 +124,8 @@ flowchart TD
     style A fill:#e1f5ff,stroke:#ffffff,stroke-width:1px
     style B fill:#f3e5f5,stroke:#ffffff,stroke-width:1px
     style C fill:#e8f5e9,stroke:#ffffff,stroke-width:1px
-    style D fill:#fce4ec,stroke:#ffffff,stroke-width:1px
+    style D1 fill:#fce4ec,stroke:#ffffff,stroke-width:1px
+    style D2 fill:#fce4ec,stroke:#ffffff,stroke-width:1px
     style E fill:#fff9c4,stroke:#ffffff,stroke-width:1px
     style F fill:#e0f2f1,stroke:#ffffff,stroke-width:1px
 ```

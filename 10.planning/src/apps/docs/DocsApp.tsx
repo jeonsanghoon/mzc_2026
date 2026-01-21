@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Input } from "../../components/ui/input";
-import { FileText, BookOpen, GitBranch, ChevronRight, Play, Code2, ZoomIn, ZoomOut, Maximize2, RotateCcw, X, Expand, Target, Flag, Layout } from "lucide-react";
+import { FileText, BookOpen, GitBranch, ChevronRight, Play, Code2, ZoomIn, ZoomOut, Maximize2, RotateCcw, X, Expand, Target, Flag, Layout, Menu } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import ReactMarkdown from "react-markdown";
 import rehypeSlug from "rehype-slug";
@@ -1811,6 +1811,7 @@ export function DocsApp() {
   const [loading, setLoading] = useState(false);
   const [sections, setSections] = useState<Array<{ title: string; level: number; content: string; id: string; category?: string }>>([]);
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const currentDocIndex = useMemo(() => docFiles.findIndex(doc => doc.file === selectedDoc), [selectedDoc]);
   const prevDoc = currentDocIndex > 0 ? docFiles[currentDocIndex - 1] : null;
   const nextDoc = currentDocIndex >= 0 && currentDocIndex < docFiles.length - 1 ? docFiles[currentDocIndex + 1] : null;
@@ -2096,20 +2097,40 @@ export function DocsApp() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-3 sm:p-4 md:p-6">
       <div className="max-w-[1920px] mx-auto">
-        <div className="mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2">설계 문서</h1>
-          <p className="text-sm sm:text-base text-gray-600">프로젝트의 전체 설계 문서를 단계별로 확인할 수 있습니다.</p>
+        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2">설계 문서</h1>
+            <p className="text-sm sm:text-base text-gray-600">프로젝트의 전체 설계 문서를 단계별로 확인할 수 있습니다.</p>
+          </div>
+          <Button variant="outline" size="sm" className="lg:hidden shrink-0" onClick={() => setMobileMenuOpen(true)}>
+            <Menu className="h-4 w-4 mr-2" />
+            메뉴 보기
+          </Button>
         </div>
 
+        {/* 모바일 메뉴 열림 시 백드롭 */}
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 bg-black/30 z-40 lg:hidden" onClick={() => setMobileMenuOpen(false)} aria-hidden="true" />
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
-          {/* 문서 목록 및 섹션 목록 */}
-          <div className="lg:col-span-1 space-y-4">
+          {/* 문서 목록 및 섹션 목록 — 모바일: 숨김, 메뉴 보기로 토글; lg 이상: 항상 표시 */}
+          <div
+            className={`space-y-4 lg:col-span-1 ${
+              !mobileMenuOpen ? "hidden" : "fixed inset-y-0 left-0 z-50 w-80 max-w-[85vw] bg-white shadow-2xl overflow-y-auto p-4"
+            } lg:!block lg:!relative lg:!inset-auto lg:!z-0 lg:!w-auto lg:!max-w-none lg:bg-transparent lg:shadow-none lg:overflow-visible lg:!p-0`}
+          >
             <Card className="mb-4">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base sm:text-lg">문서 목록</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  설계 문서를 선택하세요 {docFiles.length > 0 && ` (${docFiles.length}개)`}
-                </CardDescription>
+              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base sm:text-lg">문서 목록</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
+                    설계 문서를 선택하세요 {docFiles.length > 0 && ` (${docFiles.length}개)`}
+                  </CardDescription>
+                </div>
+                <Button variant="ghost" size="icon" className="lg:hidden shrink-0" onClick={() => setMobileMenuOpen(false)} aria-label="메뉴 닫기">
+                  <X className="h-4 w-4" />
+                </Button>
               </CardHeader>
               <CardContent className="space-y-2">
                 {docFiles.map((doc) => {
@@ -2127,6 +2148,7 @@ export function DocsApp() {
                         onClick={() => {
                           loadDoc(doc.file);
                           window.location.hash = `#docs/${doc.id}`;
+                          setMobileMenuOpen(false);
                         }}
                         disabled={loading}
                       >
@@ -2161,7 +2183,10 @@ export function DocsApp() {
                             : "!text-gray-700 hover:!bg-gray-100 hover:!text-gray-900"
                         }`}
                         style={{ paddingLeft: `${8 + indentLevel}px` }}
-                        onClick={() => goToSection(section.id)}
+                        onClick={() => {
+                          goToSection(section.id);
+                          setMobileMenuOpen(false);
+                        }}
                       >
                         <span className="font-normal text-[10px] sm:text-xs text-gray-400 mr-1">{sectionIndex}.</span>
                         <span className="font-normal flex-1 truncate text-left">{section.title}</span>
